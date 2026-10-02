@@ -1,0 +1,88 @@
+name: 更新加密新闻数据
+
+on:
+  schedule:
+    # 每15分钟运行一次（GitHub Actions 的定时任务可能会延迟几分钟）
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_seed:
+        description: '强制重新播种（回填近12小时）'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 获取现有数据
+        id: get-data
+        run: |
+          # 尝试从 gh-pages 分支获取之前的状态
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            if git show origin/gh-pages:state.json >/dev/null 2>&1; then
+              git show origin/gh-pages:state.json > state.json
+              echo "has_state=true" >> $GITHUB_OUTPUT
+              echo "✓ 已获取现有状态数据"
+            else
+              echo "has_state=false" >> $GITHUB_OUTPUT
+              echo "ℹ gh-pages 分支存在但无状态数据，将首次播种"
+            fi
+          else
+            echo "has_state=false" >> $GITHUB_OUTPUT
+            echo "ℹ gh-pages 分支不存在，将首次播种"
+          fi
+
+      - name: 抓取和处理新闻
+        id: fetch
+        run: |
+          python3 fetch_news.py \
+            ${{ (steps.get-data.outputs.has_state == 'false' || inputs.force_seed) && '--seed' || '' }}
+
+      - name: 准备部署
+        run: |
+          mkdir -p deploy
+          cp data.json deploy/
+          cp state.json deploy/
+          cp index.html deploy/
+          
+          # 创建 _config.yml 禁用 Jekyll
+          echo "" > deploy/.nojekyll
+
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '更新新闻数据 ${{ steps.fetch.outputs.summary }}'
+
+      - name: 输出摘要
+        run: |
+          echo "### 📰 新闻更新完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat summary.md >> $GITHUB_STEP_SUMMARY || echo "无摘要数据" >> $GITHUB_STEP_SUMMARY
