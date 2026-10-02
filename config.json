@@ -1,0 +1,771 @@
+{
+  "_comment": "news_dashboard 配置（由 news_watch/config.json 复制并扩展）。修改后重启 server.py 生效。打分/关键词规则与 news_watch 相同。",
+  "dashboard": {
+    "host": "127.0.0.1",
+    "port": 5190,
+    "poll_seconds": 180,
+    "retain_hours": 48,
+    "seed_hours": 12,
+    "data_dir": "data",
+    "price_for_low": true,
+    "_note": "price_for_low: 低分条目也取价(仅 Binance，CoinGecko 兜底只给命中条目，避免限流)"
+  },
+  "threshold": 7,
+  "big_threshold": 7,
+  "cluster_hours": 6,
+  "cross_confirm_bonus": 1,
+  "breaking_tag_bonus": 1,
+  "summary_factor": 0.3,
+  "source_fail_alert_after": 8,
+  "sources": {
+    "coindesk": {
+      "enabled": true,
+      "type": "rss",
+      "label": "CoinDesk",
+      "url": "https://www.coindesk.com/arc/outboundfeeds/rss"
+    },
+    "theblock": {
+      "enabled": true,
+      "type": "rss",
+      "label": "The Block",
+      "url": "https://www.theblock.co/rss.xml"
+    },
+    "odaily": {
+      "enabled": true,
+      "type": "odaily",
+      "label": "Odaily",
+      "first_run_ids": 60,
+      "max_ids_per_run": 150,
+      "seed_ids": 220
+    },
+    "panews": {
+      "enabled": true,
+      "type": "panews",
+      "label": "PANews",
+      "take": 50
+    }
+  },
+  "tokens": {
+    "BTC": {
+      "names": [
+        "Bitcoin",
+        "比特币"
+      ],
+      "weight": 2,
+      "gecko": "bitcoin"
+    },
+    "ETH": {
+      "names": [
+        "Ethereum",
+        "Ether",
+        "以太坊"
+      ],
+      "weight": 2,
+      "gecko": "ethereum"
+    },
+    "NEAR": {
+      "names": [
+        "NEAR Protocol",
+        "Near Protocol",
+        "NEAR Intents",
+        "Near Intents",
+        "NEAR Foundation",
+        "Near Foundation",
+        "near.com"
+      ],
+      "weight": 4,
+      "gecko": "near"
+    },
+    "SOL": {
+      "names": [
+        "Solana"
+      ],
+      "weight": 3,
+      "gecko": "solana"
+    },
+    "HYPE": {
+      "names": [
+        "Hyperliquid"
+      ],
+      "weight": 4,
+      "gecko": "hyperliquid"
+    },
+    "PUMP": {
+      "names": [
+        "Pump.fun",
+        "pump.fun",
+        "PumpFun"
+      ],
+      "weight": 4,
+      "gecko": "pump-fun"
+    },
+    "SUI": {
+      "names": [
+        "Sui Network",
+        "Mysten Labs"
+      ],
+      "weight": 4,
+      "gecko": "sui"
+    }
+  },
+  "auto_tokens": {
+    "enabled": true,
+    "weight": 3,
+    "max_age_days": 14,
+    "trackers": {
+      "unlock_tracker": "unlocks.csv",
+      "delist_tracker": "delistings.csv",
+      "futures_listing_tracker": "listings.csv",
+      "burn_tracker": "burns.csv"
+    },
+    "exclude": [
+      "USDT",
+      "USDC",
+      "USD1",
+      "BTC",
+      "ETH"
+    ],
+    "root": "",
+    "_note": "可选：root 填 trading-watch 目录(含 */output/ 的 tracker 输出)，或设环境变量 NEWS_DASH_TRACKER_ROOT。留空/目录不存在时自动跳过，只用 tokens 里的手动列表。"
+  },
+  "ambiguous_tickers": [
+    "NEAR",
+    "ONE",
+    "HYPE",
+    "PUMP",
+    "SKY",
+    "LINK",
+    "GAS",
+    "SUN",
+    "MAGIC",
+    "CAKE",
+    "ME",
+    "OM",
+    "IP",
+    "CT",
+    "STREAM",
+    "ALT",
+    "GUN",
+    "MEGA",
+    "ACT",
+    "AI",
+    "ANY",
+    "BAND",
+    "BOND",
+    "CHAIN",
+    "COOKIE",
+    "DOGS",
+    "DOOD",
+    "EDGE",
+    "FUN",
+    "GAME",
+    "GOAT",
+    "HIGH",
+    "HOOK",
+    "ID",
+    "JOE",
+    "KEY",
+    "LAYER",
+    "MOVE",
+    "NOT",
+    "OP",
+    "PEOPLE",
+    "PORTAL",
+    "PRIME",
+    "REAL",
+    "RARE",
+    "RED",
+    "SAFE",
+    "SAND",
+    "SIGN",
+    "SOON",
+    "SPELL",
+    "STORY",
+    "SUPER",
+    "TRUMP",
+    "TRUTH",
+    "UP",
+    "WAL",
+    "WIN",
+    "XAI",
+    "ZK",
+    "PAID",
+    "LIT",
+    "FF",
+    "VVV",
+    "XDP",
+    "KII",
+    "QNT"
+  ],
+  "context_words": [
+    "token",
+    "tokens",
+    "protocol",
+    "coin",
+    "price",
+    "network",
+    "chain",
+    "foundation",
+    "intents",
+    "labs",
+    "dao",
+    "etf",
+    "etp",
+    "perp",
+    "perpetual",
+    "futures",
+    "spot",
+    "staking",
+    "holders",
+    "whale",
+    "代币",
+    "币",
+    "价格",
+    "生态",
+    "基金会",
+    "永续",
+    "现货",
+    "合约",
+    "质押",
+    "持仓",
+    "多单",
+    "空单",
+    "主网",
+    "上线",
+    "下架",
+    "解锁",
+    "销毁",
+    "回购"
+  ],
+  "events": [
+    {
+      "key": "hack",
+      "label": "漏洞/被盗",
+      "weight": 10,
+      "big": true,
+      "en": [
+        "hack(?:ed|er|ers|s)?",
+        "exploit(?:ed|s)?",
+        "drain(?:ed|s)?",
+        "stolen",
+        "breach(?:ed)?",
+        "attack(?:ed|er)?",
+        "compromised",
+        "rug ?pull"
+      ],
+      "zh": [
+        "漏洞",
+        "被盗",
+        "黑客",
+        "遭攻击",
+        "攻击者",
+        "盗取",
+        "被攻击",
+        "跑路"
+      ]
+    },
+    {
+      "key": "delist",
+      "label": "下架",
+      "weight": 8,
+      "big": true,
+      "en": [
+        "delist(?:s|ed|ing)?",
+        "will remove .{0,20}trading pairs?",
+        "cease trading"
+      ],
+      "zh": [
+        "下架",
+        "停止交易",
+        "终止交易",
+        "摘牌"
+      ]
+    },
+    {
+      "key": "etf",
+      "label": "ETF申请/批准/上市",
+      "weight": 7,
+      "big": true,
+      "en": [
+        "(?:ETF|ETP)s?\\b.{0,60}\\b(?:fil(?:es|ed|ing)|approv(?:es|ed|al)|launch(?:es|ed)?|debut(?:s|ed)?|list(?:s|ed|ing)|S-1|19b-4|reject(?:s|ed)?)",
+        "\\b(?:fil(?:es|ed|ing)|approv(?:es|ed|al)|launch(?:es|ed)?|reject(?:s|ed)?)\\b.{0,60}\\b(?:ETF|ETP)s?"
+      ],
+      "zh": [
+        "ETF.{0,20}(?:申请|批准|获批|上市|推出|拒绝)",
+        "(?:申请|批准|获批|推出).{0,20}ETF"
+      ]
+    },
+    {
+      "key": "etf_flow",
+      "label": "ETF资金流",
+      "weight": 4,
+      "big": false,
+      "en": [
+        "ETFs?\\b.{0,40}\\b(?:inflows?|outflows?|flows)",
+        "(?:inflows?|outflows?)\\b.{0,40}\\bETFs?"
+      ],
+      "zh": [
+        "ETF.{0,20}(?:净流入|净流出|流入|流出)"
+      ]
+    },
+    {
+      "key": "regulation",
+      "label": "监管执法/诉讼",
+      "weight": 7,
+      "big": true,
+      "en": [
+        "lawsuits?",
+        "sue[sd]?",
+        "suing",
+        "indict(?:ed|ment)?",
+        "charged",
+        "charges",
+        "sanction(?:s|ed)?",
+        "subpoena(?:s|ed)?",
+        "settle(?:s|d|ment)",
+        "fine[sd]?",
+        "penalt(?:y|ies)",
+        "ban(?:s|ned)?",
+        "arrest(?:s|ed)?",
+        "(?:SEC|CFTC|DOJ|FCA|ESMA)\\b.{0,40}\\b(?:propos(?:es|ed|al)|rules?|approv(?:es|ed)|reject(?:s|ed)|guidance|order|probe|investigat\\w*)"
+      ],
+      "zh": [
+        "诉讼",
+        "起诉",
+        "指控",
+        "制裁",
+        "罚款",
+        "禁令",
+        "判决",
+        "逮捕",
+        "立案调查",
+        "展开调查",
+        "传唤",
+        "(?:SEC|CFTC|美SEC|司法部).{0,15}(?:提议|拟议|新规|规则|批准|拒绝|调查|指引)"
+      ]
+    },
+    {
+      "key": "regulation_general",
+      "label": "监管动态",
+      "weight": 5,
+      "big": false,
+      "en": [
+        "SEC",
+        "CFTC",
+        "regulators?",
+        "regulation",
+        "legislation",
+        "bill",
+        "MiCA",
+        "lawmakers?",
+        "Congress"
+      ],
+      "zh": [
+        "监管",
+        "法案",
+        "立法",
+        "国会",
+        "合规"
+      ]
+    },
+    {
+      "key": "listing",
+      "label": "上线/上合约",
+      "weight": 5,
+      "big": false,
+      "en": [
+        "(?<!de)list(?:s|ed|ing)\\b",
+        "perpetual",
+        "perps?\\b",
+        "futures listing",
+        "launch(?:es|ed)? .{0,20}(?:spot|trading)"
+      ],
+      "zh": [
+        "上线\\s*\\$?[A-Z][A-Z0-9]{1,11}(?![A-Za-z])",
+        "上线.{0,10}(?:现货|永续|合约|交易对|代币)",
+        "(?:现货|永续|合约)\\S{0,6}上线",
+        "上架",
+        "上币",
+        "开放交易",
+        "永续合约"
+      ]
+    },
+    {
+      "key": "unlock",
+      "label": "解锁",
+      "weight": 5,
+      "big": false,
+      "en": [
+        "unlock(?:s|ed|ing)?",
+        "vesting",
+        "cliff"
+      ],
+      "zh": [
+        "解锁"
+      ]
+    },
+    {
+      "key": "outage",
+      "label": "暂停/宕机",
+      "weight": 5,
+      "big": false,
+      "en": [
+        "halt(?:s|ed)?",
+        "paus(?:es|ed|e)",
+        "suspend(?:s|ed)?",
+        "outage",
+        "downtime"
+      ],
+      "zh": [
+        "暂停",
+        "宕机",
+        "停止充提",
+        "暂停充提"
+      ]
+    },
+    {
+      "key": "whale",
+      "label": "巨鲸/爆仓",
+      "weight": 4,
+      "big": false,
+      "en": [
+        "whales?",
+        "liquidat(?:ed|ion|ions)",
+        "short squeeze",
+        "transfers? .{0,30}to (?:Binance|Coinbase|Kraken|OKX|Bybit)"
+      ],
+      "zh": [
+        "巨鲸",
+        "爆仓",
+        "清算",
+        "转入.{0,10}(?:交易所|Binance|币安|Coinbase|Kraken|OKX)",
+        "存入.{0,10}(?:交易所|Binance|币安|Coinbase|Kraken|OKX)"
+      ]
+    },
+    {
+      "key": "burn",
+      "label": "销毁/回购",
+      "weight": 3,
+      "big": false,
+      "en": [
+        "burn(?:s|ed|ing)?",
+        "buy ?backs?"
+      ],
+      "zh": [
+        "销毁",
+        "回购"
+      ]
+    },
+    {
+      "key": "price_move",
+      "label": "大幅波动",
+      "weight": 3,
+      "big": false,
+      "en": [
+        "surg(?:es|ed|e)",
+        "plung(?:es|ed|e)",
+        "tumbl(?:es|ed|e)",
+        "soar(?:s|ed)?",
+        "slump(?:s|ed)?",
+        "crash(?:es|ed)?",
+        "plummet(?:s|ed)?",
+        "spik(?:es|ed|e)",
+        "rall(?:y|ies|ied)",
+        "sink(?:s)?",
+        "sank",
+        "jump(?:s|ed)?"
+      ],
+      "zh": [
+        "涨超",
+        "跌超",
+        "暴跌",
+        "暴涨",
+        "大涨",
+        "大跌",
+        "跳水",
+        "拉升",
+        "闪崩"
+      ]
+    }
+  ],
+  "noise": [
+    {
+      "label": "观点/评论",
+      "weight": -4,
+      "en": [
+        "opinion",
+        "op-ed",
+        "commentary",
+        "column",
+        "why i ",
+        "i think"
+      ],
+      "zh": [
+        "观点",
+        "评论",
+        "专栏"
+      ]
+    },
+    {
+      "label": "播客/视频",
+      "weight": -5,
+      "en": [
+        "podcast",
+        "video",
+        "webinar",
+        "livestream",
+        "episode"
+      ],
+      "zh": [
+        "播客",
+        "直播",
+        "视频"
+      ]
+    },
+    {
+      "label": "日常行情分析",
+      "weight": -4,
+      "en": [
+        "price analysis",
+        "price prediction",
+        "technical analysis",
+        "market wrap",
+        "daybook",
+        "markets today",
+        "crypto daybook",
+        "what to watch"
+      ],
+      "zh": [
+        "行情分析",
+        "技术分析",
+        "今日行情",
+        "早讯",
+        "午讯",
+        "晚讯",
+        "日报",
+        "周报",
+        "今日热议",
+        "盘点",
+        "回顾"
+      ]
+    },
+    {
+      "label": "赞助/软文",
+      "weight": -8,
+      "en": [
+        "sponsored",
+        "press release",
+        "paid content",
+        "partner content"
+      ],
+      "zh": [
+        "赞助",
+        "广告",
+        "软文"
+      ]
+    },
+    {
+      "label": "例行日报",
+      "weight": -2,
+      "en": [
+        "daily recap"
+      ],
+      "zh": [
+        "过去\\s*24\\s*小时.{0,12}(?:回购|销毁)"
+      ]
+    },
+    {
+      "label": "回顾/统计",
+      "weight": -3,
+      "en": [
+        "in q[1-4]",
+        "quarter(?:ly)? (?:report|review|recap)",
+        "monster quarter",
+        "so far this year",
+        "year-to-date",
+        "rough year",
+        "report shows",
+        "data shows"
+      ],
+      "zh": [
+        "季度报告",
+        "今年以来",
+        "年内累计",
+        "报告显示",
+        "数据显示",
+        "环比"
+      ]
+    }
+  ],
+  "cluster_glossary": {
+    "custody": [
+      "custody",
+      "托管"
+    ],
+    "adviser": [
+      "adviser",
+      "advisers",
+      "advisor",
+      "投资顾问"
+    ],
+    "fund": [
+      "fund",
+      "funds",
+      "基金"
+    ],
+    "hack": [
+      "hack",
+      "hacked",
+      "exploit",
+      "exploited",
+      "stolen",
+      "drained",
+      "被盗",
+      "漏洞",
+      "攻击"
+    ],
+    "compensation": [
+      "compensation",
+      "compensate",
+      "reimburse",
+      "赔付",
+      "赔偿"
+    ],
+    "etf": [
+      "etf",
+      "etp"
+    ],
+    "inflow": [
+      "inflow",
+      "inflows",
+      "净流入",
+      "流入"
+    ],
+    "outflow": [
+      "outflow",
+      "outflows",
+      "净流出",
+      "流出"
+    ],
+    "stablecoin": [
+      "stablecoin",
+      "stablecoins",
+      "稳定币"
+    ],
+    "lawsuit": [
+      "lawsuit",
+      "sues",
+      "sued",
+      "诉讼",
+      "起诉"
+    ],
+    "delist": [
+      "delist",
+      "delists",
+      "delisting",
+      "下架"
+    ],
+    "listing": [
+      "listing",
+      "lists",
+      "listed",
+      "上线",
+      "上架"
+    ],
+    "unlock": [
+      "unlock",
+      "unlocks",
+      "解锁"
+    ],
+    "burn": [
+      "burn",
+      "burns",
+      "burned",
+      "销毁"
+    ],
+    "buyback": [
+      "buyback",
+      "buybacks",
+      "回购"
+    ],
+    "wyoming": [
+      "wyoming",
+      "怀俄明"
+    ],
+    "newyork": [
+      "new york",
+      "nydfs",
+      "纽约"
+    ],
+    "treasury": [
+      "treasury",
+      "财政部"
+    ],
+    "bank": [
+      "bank",
+      "banks",
+      "银行"
+    ],
+    "binance": [
+      "binance",
+      "币安"
+    ],
+    "coinbase": [
+      "coinbase"
+    ],
+    "okx": [
+      "okx"
+    ],
+    "bybit": [
+      "bybit"
+    ],
+    "bitget": [
+      "bitget"
+    ],
+    "upbit": [
+      "upbit"
+    ],
+    "kucoin": [
+      "kucoin"
+    ],
+    "sec": [
+      "sec",
+      "美sec"
+    ],
+    "cftc": [
+      "cftc"
+    ],
+    "approval": [
+      "approval",
+      "approve",
+      "approved",
+      "批准",
+      "获批"
+    ],
+    "filing": [
+      "filing",
+      "files",
+      "filed",
+      "申请"
+    ],
+    "liquidation": [
+      "liquidation",
+      "liquidated",
+      "爆仓",
+      "清算"
+    ],
+    "whale": [
+      "whale",
+      "whales",
+      "巨鲸"
+    ],
+    "proposal": [
+      "propose",
+      "proposes",
+      "proposed",
+      "proposal",
+      "提议",
+      "拟议"
+    ]
+  }
+}
