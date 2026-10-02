@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>经济日历 - 加密新闻看板</title>
+<style>
+:root{--bg:#0b0e11;--panel:#12161c;--panel2:#181d25;--line:#232a35;--txt:#d6dde6;--dim:#7d8896;--mute:#59626e;
+--up:#0ecb81;--down:#f6465d;--warn:#f0b90b;--acc:#3d8bfd;--big:#f6465d;--medium:#f0b90b;--macro:#8b5cf6;--earnings:#3b82f6;--crypto:#f59e0b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Menlo,monospace}
+a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:5;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px}
+.brand{font-weight:700;letter-spacing:.5px;color:var(--warn);font-family:Menlo,monospace}
+.nav{display:flex;gap:4px}
+.nav a{padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;transition:all .2s}
+.nav a:hover{border-color:var(--acc);color:var(--acc);text-decoration:none}
+.nav a.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.clock{font-family:Menlo,monospace;color:var(--dim);font-size:12px}
+.sp{flex:1}
+button,select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font:inherit;font-size:12px;cursor:pointer}
+button:hover{border-color:#3a4554}
+button.on{background:#1f3350;border-color:var(--acc);color:#fff}
+.seg{display:inline-flex}.seg button{border-radius:0}.seg button:first-child{border-radius:4px 0 0 4px}.seg button:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
+.filters{border-top:1px solid var(--line);background:var(--panel);padding:8px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filters label{color:var(--dim);font-size:12px;display:inline-flex;align-items:center;gap:5px}
+.stats{color:var(--dim);font-size:12px;padding:6px 14px;border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap}
+.stats b{color:var(--txt);font-weight:600}
+.section{padding:12px 14px 0;max-width:1200px}
+.section-title{font-size:16px;font-weight:600;color:var(--txt);margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.list{display:flex;flex-direction:column;gap:8px;padding-bottom:40px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:4px;padding:10px 12px;position:relative}
+.card.big{border-left-color:var(--big)}.card.medium{border-left-color:var(--medium)}
+.card.macro{background:linear-gradient(90deg,rgba(139,92,246,.08) 0,var(--panel) 40%)}
+.card.earnings{background:linear-gradient(90deg,rgba(59,130,246,.08) 0,var(--panel) 40%)}
+.card.crypto{background:linear-gradient(90deg,rgba(245,158,11,.08) 0,var(--panel) 40%)}
+.card.past{opacity:.7}
+.hdr{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:6px}
+.b{font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.b.big{background:var(--big);border-color:var(--big);color:#fff;font-weight:700}
+.b.medium{background:var(--medium);border-color:var(--medium);color:#fff;font-weight:600}
+.b.macro{color:var(--macro);border-color:var(--macro);background:rgba(139,92,246,.15)}
+.b.earnings{color:var(--earnings);border-color:var(--earnings);background:rgba(59,130,246,.15)}
+.b.crypto{color:var(--crypto);border-color:var(--crypto);background:rgba(245,158,11,.15)}
+.b.confirmed{color:var(--up);border-color:#145c3d;background:#0d2a1e}
+.b.estimated{color:var(--mute);border-color:var(--line)}
+.anchor{margin-left:auto;font-family:Menlo,monospace;font-weight:700;font-size:13px;color:var(--warn)}
+.title{font-size:15px;font-weight:600;color:#eef2f7;margin:2px 0 6px}
+.symbol{font-family:Menlo,monospace;color:var(--acc);font-weight:600}
+.meta{color:var(--dim);font-size:12px;margin-top:4px}
+.meta .t{font-family:Menlo,monospace}
+.data-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+.data-item{display:flex;flex-direction:column;gap:2px}
+.data-label{font-size:10px;color:var(--mute);text-transform:uppercase}
+.data-value{font-family:Menlo,monospace;font-size:13px;font-weight:600;color:var(--txt)}
+.data-value.actual{color:var(--acc)}
+.data-value.high{color:var(--up)}
+.data-value.low{color:var(--down)}
+.data-value.inline{color:var(--warn)}
+.empty{color:var(--dim);padding:40px;text-align:center}
+@media (max-width:700px){.title{font-size:14px}.filters{font-size:11px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <span class="brand">◆ CRYPTO NEWS WATCH</span>
+    <div class="nav">
+      <a href="index.html">新闻</a>
+      <a href="calendar.html" class="active">日历</a>
+    </div>
+    <span class="sp"></span>
+    <span class="clock" id="clock">--</span>
+  </div>
+  <div class="filters">
+    <span class="seg">
+      <button id="viewUpcoming" class="on">即将发生</button>
+      <button id="viewPast">已公布</button>
+    </span>
+    <label>分类 <select id="fCategory"><option value="">全部</option></select></label>
+    <label>锚定 <select id="fAnchor"><option value="">全部</option><option value="BTC">BTC</option><option value="QQQ">QQQ</option></select></label>
+    <span class="sp"></span>
+    <span class="stats" id="stats">加载中…</span>
+  </div>
+</div>
+
+<div class="section">
+  <div id="upcomingSection">
+    <h2 class="section-title">📅 即将发生（未来14天）</h2>
+    <div class="list" id="upcomingList"><div class="empty">加载中…</div></div>
+  </div>
+  <div id="pastSection" style="display:none">
+    <h2 class="section-title">📊 已公布</h2>
+    <div class="list" id="pastList"><div class="empty">暂无</div></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem("cal_"+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("cal_"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+let data = null;
+let dataSource = null;
+const st = {
+  view: LS.get("view", "upcoming"),
+  category: LS.get("category", ""),
+  anchor: LS.get("anchor", "")
+};
+
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const pad = n => String(n).padStart(2, "0");
+
+// ---------------------------------------------------------------- data
+async function loadData(){
+  const cacheBust = Math.floor(Date.now() / 30000);
+  const fallbackUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/calendar.json";
+  
+  try {
+    const r = await fetch("./calendar.json?_=" + cacheBust);
+    if (r.ok) {
+      data = await r.json();
+      dataSource = "本地 (gh-pages)";
+      return;
+    }
+  } catch(e) {
+    console.log("本地 calendar.json 不可用，尝试回退源:", e.message);
+  }
+  
+  const r = await fetch(fallbackUrl + "?_=" + cacheBust);
+  if (!r.ok) throw new Error("HTTP " + r.status + " (回退源)");
+  data = await r.json();
+  dataSource = "GitHub raw (gh-pages 分支)";
+}
+
+function getCategoryLabel(cat){
+  return {macro: "宏观", earnings: "财报", crypto: "币圈"}[cat] || cat;
+}
+
+function getImportanceLabel(imp){
+  return {big: "重大", medium: "中"}[imp] || imp;
+}
+
+function formatTime(event){
+  if (event.time_beijing) {
+    const parts = event.time_beijing.split(' ');
+    const date = parts[0];
+    const time = parts[1];
+    const wd = event.weekday || "";
+    return `${date} ${wd} ${time} (UTC+8)`;
+  }
+  return event.time_utc || "";
+}
+
+function formatVsExpected(vs){
+  return {high: "高于预期", low: "低于预期", inline: "符合预期"}[vs] || "";
+}
+
+function card(event){
+  const cat = event.category || "macro";
+  const imp = event.importance || "medium";
+  const isPast = event.is_past || false;
+  
+  let h = `<div class="card ${cat} ${imp} ${isPast ? 'past' : ''}" data-id="${esc(event.id)}">`;
+  h += '<div class="hdr">';
+  h += `<span class="b ${imp}">${getImportanceLabel(imp)}</span>`;
+  h += `<span class="b ${cat}">${getCategoryLabel(cat)}</span>`;
+  if (event.confirmed === true) {
+    h += '<span class="b confirmed">已确认</span>';
+  } else if (event.confirmed === false) {
+    h += '<span class="b estimated">预估</span>';
+  }
+  h += `<span class="anchor">${esc(event.anchor || "")}</span>`;
+  h += '</div>';
+  
+  h += `<div class="title">`;
+  if (event.symbol && event.category === "earnings") {
+    h += `<span class="symbol">${esc(event.symbol)}</span> `;
+  }
+  h += `${esc(event.type)}`;
+  if (event.symbol && event.category !== "earnings") {
+    h += ` (${esc(event.symbol)})`;
+  }
+  h += '</div>';
+  
+  h += `<div class="meta"><span class="t">${formatTime(event)}</span>`;
+  if (event.note) {
+    h += ` · ${esc(event.note)}`;
+  }
+  h += '</div>';
+  
+  // 数据行
+  const hasData = event.expected || event.previous || event.actual || event.vs_expected;
+  if (hasData) {
+    h += '<div class="data-row">';
+    if (event.expected) {
+      h += '<div class="data-item"><div class="data-label">预期</div><div class="data-value">' + esc(event.expected) + '</div></div>';
+    }
+    if (event.previous) {
+      h += '<div class="data-item"><div class="data-label">前值</div><div class="data-value">' + esc(event.previous) + '</div></div>';
+    }
+    if (event.actual) {
+      const vsClass = event.vs_expected || "";
+      h += '<div class="data-item"><div class="data-label">实际</div><div class="data-value actual ' + vsClass + '">' + esc(event.actual);
+      if (event.vs_expected) {
+        h += ' <span style="font-size:10px">(' + formatVsExpected(event.vs_expected) + ')</span>';
+      }
+      h += '</div></div>';
+    }
+    h += '</div>';
+  }
+  
+  h += '</div>';
+  return h;
+}
+
+function passes(event){
+  if (st.category && event.category !== st.category) return false;
+  if (st.anchor && event.anchor !== st.anchor) return false;
+  return true;
+}
+
+function render(){
+  if (!data) return;
+  
+  const now = Date.now() / 1000;
+  const twoWeeks = now + 14 * 86400;
+  
+  let upcoming = data.upcoming || [];
+  let past = data.past || [];
+  
+  // 过滤未来14天
+  upcoming = upcoming.filter(e => {
+    if (!e.time_utc) return true;
+    const ts = new Date(e.time_utc).getTime() / 1000;
+    return ts <= twoWeeks;
+  });
+  
+  const upcomingFiltered = upcoming.filter(passes);
+  const pastFiltered = past.filter(passes);
+  
+  $("stats").textContent = `即将 ${upcomingFiltered.length} 个 · 已公布 ${pastFiltered.length} 个`;
+  if (dataSource) {
+    $("stats").textContent += ` · 数据: ${dataSource}`;
+  }
+  
+  const upList = $("upcomingList");
+  const paList = $("pastList");
+  
+  upList.innerHTML = upcomingFiltered.length ? upcomingFiltered.map(card).join("") : '<div class="empty">暂无即将发生的事件</div>';
+  paList.innerHTML = pastFiltered.length ? pastFiltered.slice().reverse().map(card).join("") : '<div class="empty">暂无已公布的事件</div>';
+  
+  // 填充分类下拉
+  const cats = [...new Set([...upcoming, ...past].map(e => e.category))];
+  const catSel = $("fCategory");
+  const catHtml = '<option value="">全部</option>' + cats.map(c => `<option value="${esc(c)}">${getCategoryLabel(c)}</option>`).join("");
+  if (catSel.dataset.h !== catHtml) {
+    catSel.innerHTML = catHtml;
+    catSel.dataset.h = catHtml;
+  }
+  catSel.value = st.category;
+}
+
+function bindControls(){
+  const setView = v => {
+    st.view = v;
+    LS.set("view", v);
+    $("viewUpcoming").classList.toggle("on", v === "upcoming");
+    $("viewPast").classList.toggle("on", v === "past");
+    $("upcomingSection").style.display = v === "upcoming" ? "block" : "none";
+    $("pastSection").style.display = v === "past" ? "block" : "none";
+  };
+  $("viewUpcoming").onclick = () => setView("upcoming");
+  $("viewPast").onclick = () => setView("past");
+  setView(st.view);
+  
+  $("fCategory").onchange = e => { st.category = e.target.value; LS.set("category", st.category); render(); };
+  $("fAnchor").onchange = e => { st.anchor = e.target.value; LS.set("anchor", st.anchor); render(); };
+}
+
+setInterval(() => {
+  const d = new Date();
+  const hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const beijing = new Date(d.getTime() + 8 * 3600000);
+  $("clock").textContent = pad(beijing.getHours()) + ":" + pad(beijing.getMinutes()) + " UTC+8";
+}, 1000);
+
+(async function init(){
+  try{
+    await loadData();
+    bindControls();
+    render();
+    setInterval(async () => {
+      try{ await loadData(); render(); }catch(e){ console.error("重新加载失败:", e); }
+    }, 60000);
+  }catch(e){
+    $("upcomingList").innerHTML = '<div class="empty">⚠ 加载失败: ' + esc(e.message) + '</div>';
+  }
+})();
+</script>
+</body>
+</html>

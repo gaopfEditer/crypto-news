@@ -59,13 +59,20 @@ jobs:
         run: |
           python3 fetch_news.py \
             ${{ (steps.get-data.outputs.has_state == 'false' || inputs.force_seed) && '--seed' || '' }}
+      
+      - name: 处理日历事件
+        id: calendar
+        run: |
+          python3 fetch_calendar.py
 
       - name: 准备部署
         run: |
           mkdir -p deploy
           cp data.json deploy/
           cp state.json deploy/
+          cp calendar.json deploy/
           cp index.html deploy/
+          cp calendar.html deploy/
           
           # 创建 _config.yml 禁用 Jekyll
           echo "" > deploy/.nojekyll

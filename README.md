@@ -168,6 +168,143 @@ python3 -m http.server 8000
 - **最后更新时间**（UTC+8）
 - **查看工作流** 链接：查看 Actions 运行日志
 
+## 📅 经济日历
+
+除了新闻流，看板还提供 **经济日历** 功能，显示影响 BTC 和 QQQ 价格的预定事件。
+
+### 访问日历
+
+点击顶部导航的 **「日历」** 标签，或访问 `calendar.html`。
+
+### 三大类别
+
+1. **宏观数据**（锚定 BTC + 美股）
+   - 非农就业 + 失业率（每月首个周五 20:30 UTC+8）
+   - CPI、PPI、PCE 通胀数据
+   - FOMC 决议 + 点阵图（SEP 会议）
+   - GDP、ECI 就业成本指数
+   - 初请失业金（每周四 20:30 UTC+8）
+   - 数据来源：BLS、BEA、美联储官网
+
+2. **财报季**（锚定 QQQ）
+   - Mag7：AAPL、MSFT、NVDA、AMZN、GOOGL、META、TSLA
+   - 芯片股：MU、AMD、AVGO、AMAT、LRCX
+   - 标记「已确认」（来自公司 IR）或「预估」（来自财报日历）
+
+3. **币圈日历**（锚定 BTC）
+   - 代币解锁日期（≥1% 供应量或 ≥$50M）
+   - Deribit/CME 期权期货到期（月度/季度）
+   - 主要链升级
+   - Spot ETF SEC 决议截止日期
+
+### 卡片信息
+
+每个事件卡片显示：
+- 时间（UTC+8，标注时区）
+- 类型、标的、锚定资产（BTC/QQQ）
+- 重要性：**重大**（宏观数据、Mag7+AVGO 财报、大型币圈事件）或 **中**
+- 预期值、前值（发布前）
+- 实际值、相对预期（发布后：高于/低于/符合预期）
+- 数据来源 URL
+
+### 筛选和视图
+
+- **即将发生**：默认显示未来 14 天
+- **已公布**：保留历史数据，显示实际值
+- 按分类筛选：宏观/财报/币圈
+- 按锚定筛选：BTC/QQQ
+
+### 手动编辑事件
+
+编辑仓库中的 `calendar_seed.json` 文件：
+
+```json
+{
+  "events": [
+    {
+      "id": "unique-id",
+      "category": "macro",
+      "type": "CPI 消费者物价指数",
+      "symbol": "CPI",
+      "anchor": "BTC",
+      "importance": "big",
+      "time_et": "2026-10-14 08:30",
+      "expected": "2.3%",
+      "previous": "2.5%",
+      "actual": "",
+      "source_url": "https://www.bls.gov/...",
+      "confirmed": true,
+      "note": "9月CPI数据"
+    }
+  ]
+}
+```
+
+**字段说明**：
+- `category`: `macro` | `earnings` | `crypto`
+- `importance`: `big` | `medium`
+- `time_et`: 美东时间（宏观/财报），格式 `YYYY-MM-DD HH:MM`
+- `time_utc`: UTC 时间（币圈事件），格式 `YYYY-MM-DD HH:MM:SS`
+- `confirmed`: `true`=官方确认, `false`=预估日期
+- `anchor`: `BTC` | `QQQ`
+
+**时间转换**：
+- 美东时间会自动转换为北京时间（UTC+8）
+- DST 期间（3月-11月）：20:30 北京时间
+- 非 DST 期间（11月-3月）：21:30 北京时间
+- FOMC 决议：14:00 ET = 次日 02:00/03:00 北京时间
+
+### 自动刷新
+
+GitHub Actions 工作流会：
+1. 每 15 分钟处理日历数据
+2. 自动转换时区（ET → UTC+8）
+3. 尝试从 BLS API 获取实际值（已发布的数据）
+4. 计算相对预期（高于/低于/符合）
+5. 生成 `calendar.json` 部署到 gh-pages
+
+### 添加财报日期
+
+```json
+{
+  "id": "nvda-q4-2026",
+  "category": "earnings",
+  "type": "财报",
+  "symbol": "NVDA",
+  "anchor": "QQQ",
+  "importance": "big",
+  "time_et": "2026-11-20 16:30",
+  "expected": "",
+  "previous": "",
+  "actual": "",
+  "source_url": "https://investor.nvidia.com/",
+  "confirmed": false,
+  "note": "NVIDIA Q4 FY2026财报，预估日期"
+}
+```
+
+### 添加币圈事件
+
+```json
+{
+  "id": "arb-unlock-2026-11",
+  "category": "crypto",
+  "type": "ARB 代币解锁",
+  "symbol": "ARB",
+  "anchor": "BTC",
+  "importance": "big",
+  "time_utc": "2026-11-15 00:00:00",
+  "expected": "1.2B ARB (约8%)",
+  "previous": "",
+  "actual": "",
+  "source_url": "https://docs.arbitrum.foundation/...",
+  "confirmed": true,
+  "note": "团队 + 投资人解锁"
+}
+```
+
+编辑后提交到 `main` 分支，下次工作流运行时会自动更新日历。
+
 ## 🔔 浏览器通知
 
 1. 勾选顶部的"重大通知"复选框
