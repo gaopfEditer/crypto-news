@@ -98,6 +98,7 @@ const LS = {
 };
 
 let data = null;
+let dataSource = null; // 记录数据来源
 let lastView = LS.get("last_view", null);
 const notified = new Set(LS.get("notified", []));
 const expanded = new Set();
@@ -128,16 +129,39 @@ function isZh(s){ return /[\u4e00-\u9fff]/.test(s || ""); }
 // ---------------------------------------------------------------- data
 async function loadData(){
   const cacheBust = Math.floor(Date.now() / 30000); // 30秒缓存
-  const r = await fetch("data.json?_=" + cacheBust);
-  if (!r.ok) throw new Error("HTTP " + r.status);
+  const fallbackUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json";
+  
+  // 先尝试本地 data.json（适用于 gh-pages 部署）
+  try {
+    const r = await fetch("./data.json?_=" + cacheBust);
+    if (r.ok) {
+      data = await r.json();
+      dataSource = "本地 (gh-pages)";
+      if (lastView === null) {
+        lastView = data.updated;
+        LS.set("last_view", lastView);
+      }
+      const fresh = data.stories.filter(it => 
+        it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
+      );
+      if (fresh.length) alertBig(fresh);
+      return;
+    }
+  } catch(e) {
+    console.log("本地 data.json 不可用，尝试回退源:", e.message);
+  }
+  
+  // 回退到 GitHub raw URL（适用于 main 分支部署）
+  const r = await fetch(fallbackUrl + "?_=" + cacheBust);
+  if (!r.ok) throw new Error("HTTP " + r.status + " (回退源)");
   data = await r.json();
+  dataSource = "GitHub raw (gh-pages 分支)";
   
   if (lastView === null) {
     lastView = data.updated;
     LS.set("last_view", lastView);
   }
   
-  // 检查重大新闻
   const fresh = data.stories.filter(it => 
     it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
   );
@@ -194,8 +218,8 @@ function renderPoll(){
   if (!data) return;
   const age = nowS() - data.updated;
   const ageMin = Math.floor(age / 60);
-  const repo = window.location.pathname.split('/')[1] || 'crypto-news-dashboard';
-  const workflowUrl = `https://github.com/${window.location.hostname.includes('github.io') ? window.location.pathname.split('/')[1] : 'USER'}/${repo}/actions/workflows/update-news.yml`;
+  const repo = window.location.pathname.split('/')[1] || 'crypto-news';
+  const workflowUrl = `https://github.com/gaopfEditer/${repo}/actions/workflows/update-news.yml`;
   
   let txt = `最后更新 ${data.updated_utc8} (UTC+8)`;
   if (age < 3600) {
@@ -205,14 +229,24 @@ function renderPoll(){
   }
   txt += ` · `;
   
+  const poll = $("poll");
+  poll.textContent = txt;
+  
   const link = document.createElement('a');
   link.href = workflowUrl;
   link.textContent = '查看工作流';
   link.target = '_blank';
   link.style.color = 'var(--acc)';
+  poll.appendChild(link);
   
-  $("poll").textContent = txt;
-  $("poll").appendChild(link);
+  // 显示数据源
+  if (dataSource) {
+    const src = document.createElement('span');
+    src.textContent = ` · 数据: ${dataSource}`;
+    src.style.color = 'var(--mute)';
+    src.style.fontSize = '11px';
+    poll.appendChild(src);
+  }
   
   const down = Object.values(data.sources).filter(s => s.enabled && s.health === "down");
   const b = $("banner");
