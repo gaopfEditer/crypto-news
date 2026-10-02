@@ -82,8 +82,92 @@ def fetch_bls_actual(event_id, symbol):
     return None
 
 
+def generate_initial_claims(start_date, days=28):
+    """生成初请失业金事件（每周四，节假日自动调整）
+    
+    Args:
+        start_date: 开始日期（datetime对象）
+        days: 生成未来多少天的数据
+    Returns:
+        list of events
+    """
+    from datetime import timedelta
+    
+    events = []
+    current = start_date
+    end_date = start_date + timedelta(days=days)
+    
+    # 美国联邦假期（2026年）
+    us_holidays = {
+        datetime(2026, 11, 26).date(): "Thanksgiving",  # 感恩节，周四 → 周三
+    }
+    
+    while current <= end_date:
+        # 找到下一个周四（weekday=3）
+        if current.weekday() == 3:  # Thursday
+            event_date = current
+            # 检查是否是节假日
+            if current.date() in us_holidays:
+                # 感恩节周四 → 移到周三
+                event_date = current - timedelta(days=1)
+                note = f"每周四发布（{us_holidays[current.date()]}假期调整至周三）"
+            else:
+                note = "每周四发布"
+            
+            event_id = f"initial-claims-{event_date.strftime('%Y-%m-%d')}"
+            events.append({
+                "id": event_id,
+                "category": "macro",
+                "type": "初请失业金人数",
+                "symbol": "CLAIMS",
+                "anchor": "BTC",
+                "importance": "big",
+                "time_et": event_date.strftime("%Y-%m-%d 08:30"),
+                "expected": "",
+                "previous": "",
+                "actual": "",
+                "source_url": "https://www.dol.gov/ui/data.pdf",
+                "confirmed": True,
+                "note": note
+            })
+        current += timedelta(days=1)
+    
+    return events
+
+
+def validate_events(events):
+    """验证事件数据
+    
+    Returns:
+        list of validation errors
+    """
+    errors = []
+    
+    for event in events:
+        # 验证：初请失业金必须是周四或节假日调整的周三
+        if event.get("symbol") == "CLAIMS":
+            if "time_et" in event:
+                try:
+                    dt = datetime.strptime(event["time_et"], "%Y-%m-%d %H:%M")
+                    weekday = dt.weekday()
+                    if weekday not in (2, 3):  # 周三或周四
+                        errors.append(f"初请失业金 {event['id']} 在错误的星期 {['周一','周二','周三','周四','周五','周六','周日'][weekday]}（必须是周四或假期调整的周三）")
+                except Exception as e:
+                    errors.append(f"初请失业金 {event['id']} 时间格式错误: {e}")
+        
+        # 验证：宏观事件必须是重大
+        if event.get("category") == "macro" and event.get("importance") != "big":
+            errors.append(f"宏观事件 {event['id']} importance={event.get('importance')}，应为 'big'")
+        
+        # 验证：有数据的必须有来源
+        if any(event.get(k) for k in ("expected", "actual", "previous")) and not event.get("source_url"):
+            errors.append(f"事件 {event['id']} 有数据但缺少 source_url")
+    
+    return errors
+
+
 def process_calendar():
-    """处理日历数据：转换时区、获取实际值"""
+    """处理日历数据：转换时区、获取实际值、生成周期事件"""
     try:
         with open("calendar_seed.json", encoding="utf-8") as f:
             seed_data = json.load(f)
@@ -94,9 +178,33 @@ def process_calendar():
     now_utc = datetime.now(timezone.utc)
     now_beijing = now_utc.astimezone(ZoneInfo("Asia/Shanghai"))
     
+    # 过滤掉手工输入的初请失业金（将由程序生成）
+    base_events = [e for e in seed_data.get("events", []) if e.get("symbol") != "CLAIMS"]
+    
+    # 生成初请失业金事件（未来28天的所有周四）
+    ny_tz = ZoneInfo("America/New_York")
+    today_et = datetime.now(ny_tz).date()
+    claims_events = generate_initial_claims(datetime(today_et.year, today_et.month, today_et.day), days=28)
+    
+    # 合并事件
+    all_events = base_events + claims_events
+    
+    # 强制所有宏观事件为重大
+    for event in all_events:
+        if event.get("category") == "macro":
+            event["importance"] = "big"
+    
+    # 验证
+    validation_errors = validate_events(all_events)
+    if validation_errors:
+        log("❌ 验证失败:")
+        for err in validation_errors:
+            log(f"  - {err}")
+        sys.exit(1)
+    
     processed_events = []
     
-    for event in seed_data.get("events", []):
+    for event in all_events:
         processed = dict(event)
         
         # 转换时间
