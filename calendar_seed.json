@@ -1,52 +1,83 @@
 {
-  "_comment": "日历事件种子数据 - 手工维护。时间为 UTC，工作流会转换为北京时间显示。",
-  "_schema": {
-    "category": "macro | earnings | crypto",
-    "type": "事件类型",
-    "symbol": "标的（股票代码或代币）",
-    "anchor": "BTC | QQQ",
-    "importance": "big | medium",
-    "time_et": "美国东部时间（仅宏观/财报用），格式 YYYY-MM-DD HH:MM",
-    "time_utc": "UTC时间，格式 YYYY-MM-DD HH:MM:SS",
-    "expected": "预期值（字符串或数字）",
-    "previous": "前值",
-    "actual": "实际值（发布后填入）",
-    "vs_expected": "相对预期：high | low | inline（实际值公布后填入）",
-    "source_url": "官方来源URL",
-    "confirmed": "true=IR确认, false=预估"
-  },
+  "_comment": "日历事件种子数据 - 手工维护。所有数据必须有真实来源，不得从记忆编造。",
+  "_validation": "每个有 expected/actual/previous 的事件必须有 source_url",
   "events": [
     {
-      "id": "nfp-2026-10",
+      "id": "nfp-2026-09",
       "category": "macro",
       "type": "非农就业人口",
       "symbol": "NFP",
       "anchor": "BTC",
       "importance": "big",
       "time_et": "2026-10-02 08:30",
-      "expected": "140K",
-      "previous": "142K",
-      "actual": "254K",
-      "vs_expected": "high",
-      "source_url": "https://www.bls.gov/schedule/news_release/empsit.htm",
+      "expected": "84K",
+      "previous": "133K (8月修正后，原报162K)",
+      "actual": "29K",
+      "vs_expected": "low",
+      "source_url": "https://www.cnbc.com/2026/10/02/jobs-report-september-2026.html",
       "confirmed": true,
-      "note": "2026年10月数据，已于10/2发布"
+      "note": "2026年9月数据，已于10/2发布"
     },
     {
-      "id": "unemployment-2026-10",
+      "id": "unemployment-2026-09",
       "category": "macro",
       "type": "失业率",
       "symbol": "UNRATE",
       "anchor": "BTC",
       "importance": "big",
       "time_et": "2026-10-02 08:30",
-      "expected": "4.2%",
-      "previous": "4.2%",
-      "actual": "4.1%",
-      "vs_expected": "low",
-      "source_url": "https://www.bls.gov/schedule/news_release/empsit.htm",
+      "expected": "4.1%",
+      "previous": "4.1%",
+      "actual": "4.2%",
+      "vs_expected": "high",
+      "source_url": "https://www.cnbc.com/2026/10/02/jobs-report-september-2026.html",
       "confirmed": true,
       "note": "与非农同时发布"
+    },
+    {
+      "id": "initial-claims-2026-10-03",
+      "category": "macro",
+      "type": "初请失业金人数",
+      "symbol": "CLAIMS",
+      "anchor": "BTC",
+      "importance": "medium",
+      "time_et": "2026-10-03 08:30",
+      "expected": "",
+      "previous": "",
+      "actual": "",
+      "source_url": "https://www.dol.gov/ui/data.pdf",
+      "confirmed": true,
+      "note": "每周四发布"
+    },
+    {
+      "id": "initial-claims-2026-10-08",
+      "category": "macro",
+      "type": "初请失业金人数",
+      "symbol": "CLAIMS",
+      "anchor": "BTC",
+      "importance": "medium",
+      "time_et": "2026-10-08 08:30",
+      "expected": "",
+      "previous": "",
+      "actual": "",
+      "source_url": "https://www.dol.gov/ui/data.pdf",
+      "confirmed": true,
+      "note": "每周四发布"
+    },
+    {
+      "id": "initial-claims-2026-10-15",
+      "category": "macro",
+      "type": "初请失业金人数",
+      "symbol": "CLAIMS",
+      "anchor": "BTC",
+      "importance": "medium",
+      "time_et": "2026-10-15 08:30",
+      "expected": "",
+      "previous": "",
+      "actual": "",
+      "source_url": "https://www.dol.gov/ui/data.pdf",
+      "confirmed": true,
+      "note": "每周四发布"
     },
     {
       "id": "cpi-2026-10",
@@ -59,7 +90,7 @@
       "expected": "",
       "previous": "",
       "actual": "",
-      "source_url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
       "confirmed": true,
       "note": "9月CPI数据"
     },
@@ -74,24 +105,24 @@
       "expected": "",
       "previous": "",
       "actual": "",
-      "source_url": "https://www.bls.gov/schedule/news_release/ppi.htm",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
       "confirmed": true,
       "note": "9月PPI数据"
     },
     {
-      "id": "initial-claims-2026-10-08",
+      "id": "fomc-2026-10",
       "category": "macro",
-      "type": "初请失业金人数",
-      "symbol": "CLAIMS",
+      "type": "FOMC 决议",
+      "symbol": "FOMC",
       "anchor": "BTC",
-      "importance": "medium",
-      "time_et": "2026-10-08 08:30",
+      "importance": "big",
+      "time_et": "2026-10-28 14:00",
       "expected": "",
       "previous": "",
       "actual": "",
-      "source_url": "https://www.bls.gov/schedule/news_release/empsit.htm",
+      "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
       "confirmed": true,
-      "note": "每周四发布"
+      "note": "2026年10月FOMC会议（10/27-28），决议14:00 ET发布"
     },
     {
       "id": "eci-2026-q3",
@@ -104,24 +135,54 @@
       "expected": "",
       "previous": "",
       "actual": "",
-      "source_url": "https://www.bls.gov/schedule/news_release/eci.htm",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
       "confirmed": true,
-      "note": "Q3就业成本指数，通常在季度后第一个月末发布"
+      "note": "Q3就业成本指数"
     },
     {
-      "id": "fomc-2026-11",
+      "id": "nfp-2026-10",
       "category": "macro",
-      "type": "FOMC 决议",
-      "symbol": "FOMC",
+      "type": "非农就业人口",
+      "symbol": "NFP",
       "anchor": "BTC",
       "importance": "big",
-      "time_et": "2026-11-06 14:00",
+      "time_et": "2026-11-06 08:30",
       "expected": "",
       "previous": "",
       "actual": "",
-      "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
       "confirmed": true,
-      "note": "2026年11月FOMC会议（11/5-6），决议14:00 ET发布"
+      "note": "2026年10月数据，EST时区（非DST）= 21:30 UTC+8"
+    },
+    {
+      "id": "unemployment-2026-10",
+      "category": "macro",
+      "type": "失业率",
+      "symbol": "UNRATE",
+      "anchor": "BTC",
+      "importance": "big",
+      "time_et": "2026-11-06 08:30",
+      "expected": "",
+      "previous": "",
+      "actual": "",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
+      "confirmed": true,
+      "note": "与非农同时发布，EST时区"
+    },
+    {
+      "id": "cpi-2026-11",
+      "category": "macro",
+      "type": "CPI 消费者物价指数",
+      "symbol": "CPI",
+      "anchor": "BTC",
+      "importance": "big",
+      "time_et": "2026-11-10 08:30",
+      "expected": "",
+      "previous": "",
+      "actual": "",
+      "source_url": "https://www.bls.gov/schedule/2026/10_sched_list.htm",
+      "confirmed": true,
+      "note": "10月CPI数据，EST时区 = 21:30 UTC+8"
     },
     {
       "id": "fomc-2026-12",
@@ -130,13 +191,13 @@
       "symbol": "FOMC",
       "anchor": "BTC",
       "importance": "big",
-      "time_et": "2026-12-17 14:00",
+      "time_et": "2026-12-09 14:00",
       "expected": "",
       "previous": "",
       "actual": "",
       "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
       "confirmed": true,
-      "note": "2026年12月FOMC会议（12/16-17），决议+点阵图14:00 ET发布"
+      "note": "2026年12月FOMC会议（12/8-9），决议+点阵图14:00 ET发布，EST时区 = 12/10 03:00 UTC+8"
     },
     {
       "id": "aapl-q4-2026",
@@ -151,7 +212,7 @@
       "actual": "",
       "source_url": "https://investor.apple.com/",
       "confirmed": false,
-      "note": "Apple Q4 2026财报，预估日期"
+      "note": "Apple Q4 2026财报，预估日期（未在IR确认）"
     },
     {
       "id": "msft-q1-2027",
@@ -166,7 +227,7 @@
       "actual": "",
       "source_url": "https://www.microsoft.com/en-us/Investor",
       "confirmed": false,
-      "note": "Microsoft Q1 FY2027财报，预估日期"
+      "note": "Microsoft Q1 FY2027财报，预估日期（未在IR确认）"
     },
     {
       "id": "meta-q3-2026",
@@ -181,7 +242,7 @@
       "actual": "",
       "source_url": "https://investor.fb.com/",
       "confirmed": false,
-      "note": "Meta Q3 2026财报，预估日期"
+      "note": "Meta Q3 2026财报，预估日期（未在IR确认）"
     },
     {
       "id": "amzn-q3-2026",
@@ -196,7 +257,7 @@
       "actual": "",
       "source_url": "https://ir.aboutamazon.com/",
       "confirmed": false,
-      "note": "Amazon Q3 2026财报，预估日期"
+      "note": "Amazon Q3 2026财报，预估日期（未在IR确认）"
     },
     {
       "id": "deribit-oct-expiry-2026",
