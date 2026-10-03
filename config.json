@@ -327,7 +327,7 @@
         "penalt(?:y|ies)",
         "ban(?:s|ned)?",
         "arrest(?:s|ed)?",
-        "(?:SEC|CFTC|DOJ|FCA|ESMA)\\b.{0,40}\\b(?:propos(?:es|ed|al)|rules?|approv(?:es|ed)|reject(?:s|ed)|guidance|order|probe|investigat\\w*)"
+        "(?:SEC|CFTC|DOJ|FCA|ESMA)\\b.{0,40}\\b(?:propos(?:es|ed|al)|rules?|reject(?:s|ed)|guidance|order|probe|investigat\\w*)"
       ],
       "zh": [
         "诉讼",
@@ -341,7 +341,7 @@
         "立案调查",
         "展开调查",
         "传唤",
-        "(?:SEC|CFTC|美SEC|司法部).{0,15}(?:提议|拟议|新规|规则|批准|拒绝|调查|指引)"
+        "(?:SEC|CFTC|美SEC|司法部).{0,15}(?:提议|拟议|新规|规则|拒绝|调查|指引)"
       ]
     },
     {
@@ -430,14 +430,13 @@
       "big": false,
       "en": [
         "whales?",
-        "liquidat(?:ed|ion|ions)",
+        "(?<!clearing )liquidat(?:ed|ion|ions)",
         "short squeeze",
         "transfers? .{0,30}to (?:Binance|Coinbase|Kraken|OKX|Bybit)"
       ],
       "zh": [
         "巨鲸",
         "爆仓",
-        "清算",
         "转入.{0,10}(?:交易所|Binance|币安|Coinbase|Kraken|OKX)",
         "存入.{0,10}(?:交易所|Binance|币安|Coinbase|Kraken|OKX)"
       ]
@@ -489,6 +488,39 @@
     }
   ],
   "noise": [
+    {
+      "label": "清算机构/clearing house",
+      "weight": -3,
+      "en": [
+        "clearing (?:house|organization|member)",
+        "\\bDCO\\b.*(?:registration|cleared|clearing)"
+      ],
+      "zh": [
+        "清算机构",
+        "清算所",
+        "清算组织成员"
+      ]
+    },
+    {
+      "label": "空投活动/促销",
+      "weight": -5,
+      "en": [
+        "airdrop campaign",
+        "launchpool",
+        "(?:trading|spot|futures) (?:competition|contest)",
+        "rewards? program",
+        "promotional event",
+        "giveaway"
+      ],
+      "zh": [
+        "空投活动",
+        "空投奖励",
+        "交易大赛",
+        "(?:Launchpool|Megadrop|活动|奖励).{0,10}瓜分",
+        "(?:注册|充值|交易).{0,10}(?:送|赠|奖励)",
+        "促销活动"
+      ]
+    },
     {
       "label": "观点/评论",
       "weight": -4,

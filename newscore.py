@@ -314,23 +314,46 @@ def nums(t):
 
 
 def same_story(a, b, cfg):
+    """改进的聚类：要求实体+事件+相似度三重验证，减少误合并"""
     if abs(a["ts"] - b["ts"]) > cfg["cluster_hours"] * 3600:
         return False
+    
     ea, eb = set(a.get("ents") or []), set(b.get("ents") or [])
     shared = ea & eb
-    # 至少 2 个共同实体，且其中至少 1 个是专有名词（避免仅凭"#被盗+#上线"这类通用概念把不同事件串在一起）
-    if a.get("event") and a.get("event") == b.get("event") and len(shared) >= 2 and any(not x.startswith("#") for x in shared):
-        return True
+    proper_nouns = {e for e in shared if not e.startswith("#")}
+    
     sa, sb = set(a.get("sig") or []), set(b.get("sig") or [])
     zh_a, zh_b = bool(CJK.search(a["title"])), bool(CJK.search(b["title"]))
-    if zh_a == zh_b and sa and sb and len(sa & sb) / len(sa | sb) >= (0.4 if zh_a else 0.5):
+    
+    # 计算标题相似度
+    if sa and sb:
+        title_sim = len(sa & sb) / len(sa | sb)
+    else:
+        title_sim = 0
+    
+    # 规则1: 同事件类型 + 至少2个共同专有名词 + 相似度阈值
+    if (a.get("event") and a.get("event") == b.get("event") and 
+        len(proper_nouns) >= 2 and title_sim >= 0.3):
         return True
-    # 同语种 + 标题含相同的"特征数字"(如 961、12134.13，排除年份/小数字) + (同事件 或 有一定字面重合) -> 同一事件
-    if zh_a == zh_b and sa and sb and (nums(a["title"]) & nums(b["title"])) and \
-            ((a.get("event") and a.get("event") == b.get("event")) or len(sa & sb) / len(sa | sb) >= 0.2):
+    
+    # 规则2: 同语种 + 高相似度（提高阈值以减少误合并）
+    if zh_a == zh_b and sa and sb and title_sim >= (0.5 if zh_a else 0.6):
         return True
+    
+    # 规则3: 特征数字 + 事件类型 + 共同实体 + 相似度
+    common_nums = nums(a["title"]) & nums(b["title"])
+    if (zh_a == zh_b and sa and sb and common_nums and 
+        a.get("event") and a.get("event") == b.get("event") and
+        len(proper_nouns) >= 1 and title_sim >= 0.25):
+        return True
+    
+    # 规则4: 同代币 + 同事件（非价格波动）+ 高相似度
     ta, tb = set(a.get("tok_in_title") or []), set(b.get("tok_in_title") or [])
-    return bool(ta & tb) and bool(a.get("event")) and a.get("event") == b.get("event") and a.get("event") not in ("price_move",)
+    if (ta & tb and a.get("event") and a.get("event") == b.get("event") and 
+        a.get("event") not in ("price_move",) and title_sim >= 0.4):
+        return True
+    
+    return False
 
 
 # ---------------------------------------------------------------- prices

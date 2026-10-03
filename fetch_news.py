@@ -48,7 +48,15 @@ def recompute_story(s, members, cfg, now):
     """重新计算故事的分数和级别"""
     lead = max(members, key=lambda m: (m["score"], -m["ts"]))
     labels = sorted({m["label"] for m in members})
-    bonus = cfg.get("cross_confirm_bonus", 1) if len(labels) > 1 else 0
+    
+    # 独立来源验证：Odaily+PANews不算多源，需要英文媒体
+    english_outlets = {"CoinDesk", "The Block"}
+    has_english = any(m["label"] in english_outlets for m in members)
+    cn_only = all(m["label"] in ("Odaily", "PANews") for m in members)
+    
+    # 真正的多源确认
+    is_multi_source = len(labels) > 1 and has_english and not cn_only
+    bonus = cfg.get("cross_confirm_bonus", 1) if is_multi_source else 0
     
     toks = list(lead["tokens"]) + [t for m in members for t in m["tokens"] if t not in lead["tokens"]]
     toks = list(dict.fromkeys(toks))
@@ -57,10 +65,10 @@ def recompute_story(s, members, cfg, now):
     score = round(lead["score"] + bonus, 2)
     
     big = any(m["big"] for m in members)
-    if big and (score >= cfg["big_threshold"] or 
-                any(m["big"] and m["score"] >= cfg["big_threshold"] for m in members)):
+    # 等级必须基于最终分数重新计算
+    if big and score >= cfg["big_threshold"]:
         level = "big"
-    elif (toks and score >= cfg["threshold"]) or any(nc.is_hit(m, cfg) for m in members):
+    elif toks and score >= cfg["threshold"]:
         level = "hit"
     else:
         level = "low"
@@ -192,7 +200,9 @@ def main():
     # 加载状态
     state = load_state()
     now = time.time()
-    seeding = args.seed or not state.get("seeded_at")
+    # 只有明确的--seed或真正空状态才播种
+    is_empty_state = not state.get("seeded_at") and len(state.get("stories", [])) == 0
+    seeding = args.seed or is_empty_state
     
     if seeding:
         log("🌱 首次播种模式（回填近12小时）")
@@ -254,21 +264,38 @@ def main():
     # 去重和聚类
     fresh.sort(key=lambda x: (-x["score"], x["ts"]))
     cluster_hours = cfg.get("cluster_hours", 6)
+    stale_check_hours = 72  # 72小时陈旧新闻检查
     recent = [s for s in stories if s["ts"] >= now - (retain_hours + cluster_hours) * 3600]
+    stale_window = [s for s in stories if s["ts"] >= now - stale_check_hours * 3600]
     touched = []
     
     for it in fresh:
         tgt = None
+        # 检查URL去重
         for s in recent:
             if any(m["url"] == it["url"] for m in s["members"]):
                 tgt = "dup"
                 break
-            if any(nc.same_story(m, it, cfg) for m in s["members"]):
-                tgt = s
-                break
         
         if tgt == "dup":
             continue
+        
+        # 72小时陈旧新闻检查：相同主体实体+事件类型
+        for s in stale_window:
+            if (it.get("event") and it.get("event") == s.get("event") and
+                s["ts"] < it["ts"] - 12 * 3600 and  # 至少12小时前的老故事
+                any(nc.same_story(m, it, cfg) for m in s["members"])):
+                # 这是陈旧新闻重新出现，附加到老故事而不是创建新故事
+                tgt = s
+                log(f"⚠ 陈旧新闻: {it['title'][:40]} 附加到 {s.get('first_seen_utc8', 'old')} 的故事")
+                break
+        
+        # 常规聚类
+        if tgt is None:
+            for s in recent:
+                if any(nc.same_story(m, it, cfg) for m in s["members"]):
+                    tgt = s
+                    break
         
         if tgt is None:
             tgt = new_story(it["id"], now, seeding)
