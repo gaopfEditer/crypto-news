@@ -76,6 +76,9 @@ def recompute_story(s, members, cfg, now):
     zh = bool(nc.CJK.search(lead["title"]))
     alt = next((m["title"] for m in members if bool(nc.CJK.search(m["title"])) != zh), None)
     
+    # 显示时间应该是最早成员的时间
+    display_ts = min(m["ts"] for m in members)
+    
     old_level = s.get("level")
     s.update(
         title=lead["title"],
@@ -93,9 +96,9 @@ def recompute_story(s, members, cfg, now):
         tok_in_title=lead["tok_in_title"],
         reasons=reasons,
         sources=labels,
-        multi=len(labels) > 1,
+        multi=is_multi_source,
         alt_title=alt,
-        ts=min(m["ts"] for m in members),
+        ts=display_ts,
         members=members
     )
     
@@ -261,66 +264,135 @@ def main():
     
     log(f"✓ 新增 {new_total} 条原始条目")
     
-    # 去重和聚类
-    fresh.sort(key=lambda x: (-x["score"], x["ts"]))
+    # === 关键修复：每次运行都从所有成员重新聚类 ===
+    # 1. 提取所有保留的历史成员
     cluster_hours = cfg.get("cluster_hours", 6)
-    stale_check_hours = 72  # 72小时陈旧新闻检查
-    recent = [s for s in stories if s["ts"] >= now - (retain_hours + cluster_hours) * 3600]
-    stale_window = [s for s in stories if s["ts"] >= now - stale_check_hours * 3600]
-    touched = []
+    retain_cut = now - retain_hours * 3600
+    cluster_cut = now - (retain_hours + cluster_hours) * 3600
     
-    for it in fresh:
-        tgt = None
-        # 检查URL去重
-        for s in recent:
-            if any(m["url"] == it["url"] for m in s["members"]):
-                tgt = "dup"
-                break
-        
-        if tgt == "dup":
+    all_members = []
+    old_story_metadata = {}  # story_id -> metadata
+    
+    for s in stories:
+        # 只保留时间窗口内的故事
+        max_member_ts = max((m["ts"] for m in s["members"]), default=0)
+        if max_member_ts < retain_cut:
             continue
         
-        # 72小时陈旧新闻检查：相同主体实体+事件类型
-        for s in stale_window:
-            if (it.get("event") and it.get("event") == s.get("event") and
-                s["ts"] < it["ts"] - 12 * 3600 and  # 至少12小时前的老故事
-                any(nc.same_story(m, it, cfg) for m in s["members"])):
-                # 这是陈旧新闻重新出现，附加到老故事而不是创建新故事
+        # 保存故事级元数据,用故事ID索引
+        old_story_metadata[s["id"]] = {
+            "first_seen": s.get("first_seen"),
+            "seeded": s.get("seeded", False),
+            "prices": s.get("prices", {})
+        }
+        
+        for m in s["members"]:
+            all_members.append(m)
+    
+    log(f"✓ 从旧状态提取了 {len(all_members)} 个历史成员")
+    
+    # 2. 合并新抓取的条目
+    url_set = {m["url"] for m in all_members}
+    for it in fresh:
+        if it["url"] not in url_set:
+            all_members.append(make_member(it))
+            url_set.add(it["url"])
+        # 如果URL重复，跳过（已在all_members中）
+    
+    log(f"✓ 合并后共 {len(all_members)} 个成员，开始重新评分和聚类...")
+    
+    # 3. 对所有成员重新评分（应用当前规则）
+    for m in all_members:
+        # 重建完整的item以便重新评分
+        item = {
+            "id": m["id"],
+            "source": m["source"],
+            "label": m["label"],
+            "url": m["url"],
+            "title": m["title"],
+            "ts": m["ts"],
+            "summary": m.get("summary", ""),
+            "tags": []
+        }
+        # 重新评分（应用当前的代币、事件、降权规则）
+        nc.score(item, toks, ev, nz, cfg)
+        # 更新member数据
+        m.update({
+            "score": item["score"],
+            "tokens": item["tokens"],
+            "tok_in_title": item["tok_in_title"],
+            "event": item["event"],
+            "event_label": item["event_label"],
+            "events": item["events"],
+            "big": item["big"],
+            "reasons": item["reasons"],
+            "sig": item["sig"],
+            "ents": item["ents"]
+        })
+    
+    # 4. 清空stories，从零开始重新聚类
+    stories = []
+    all_members.sort(key=lambda m: (-m.get("score", 0), m["ts"]))
+    
+    for m in all_members:
+        
+        # 在时间窗口内查找匹配的故事
+        tgt = None
+        for s in stories:
+            # 使用故事的第一个成员时间来判断时间窗口
+            s_ts = s["members"][0]["ts"] if s["members"] else m["ts"]
+            if abs(m["ts"] - s_ts) > cluster_hours * 3600:
+                continue
+            if any(nc.same_story(existing, m, cfg) for existing in s["members"]):
                 tgt = s
-                log(f"⚠ 陈旧新闻: {it['title'][:40]} 附加到 {s.get('first_seen_utc8', 'old')} 的故事")
                 break
         
-        # 常规聚类
         if tgt is None:
-            for s in recent:
-                if any(nc.same_story(m, it, cfg) for m in s["members"]):
-                    tgt = s
-                    break
-        
-        if tgt is None:
-            tgt = new_story(it["id"], now, seeding)
+            # 创建新故事
+            # 计算新故事的ID(与new_story函数一致)
+            story_id = hashlib.sha1(m["id"].encode()).hexdigest()[:12]
+            # 查找旧故事元数据(如果这个ID之前存在)
+            meta = old_story_metadata.get(story_id, {})
+            # 如果找到旧元数据,使用它;否则这是新故事或拆分出的子故事
+            if meta:
+                tgt = new_story(m["id"], meta.get("first_seen", now), meta.get("seeded", False))
+                tgt["prices"] = dict(meta.get("prices", {}))
+            else:
+                # 新故事或拆分出的子故事:first_seen=第一个成员ts,seeded=False
+                tgt = new_story(m["id"], m["ts"], False)
             stories.append(tgt)
-            recent.append(tgt)
         
-        tgt["members"].append(make_member(it))
+        tgt["members"].append(m)
         tgt["updated"] = now
-        recompute_story(tgt, tgt["members"], cfg, now)
-        if tgt not in touched:
-            touched.append(tgt)
     
-    log(f"✓ 更新了 {len(touched)} 个故事")
+    log(f"✓ 重新聚类完成，生成 {len(stories)} 个故事")
     
-    # 填充价格
+    # 4. 对所有故事重新计算分数、等级、多源等属性
+    for s in stories:
+        recompute_story(s, s["members"], cfg, now)
+        
+        # 清除错误的seeded标记：只有真正冷启动时创建的故事才保留
+        if s.get("seeded"):
+            seeded_at = state.get("seeded_at")
+            if seeded_at and s.get("first_seen", 0) > seeded_at + 600:
+                s["seeded"] = False
+            elif not seeded_at and not seeding:
+                # 没有冷启动记录且当前不是冷启动
+                s["seeded"] = False
+    
+    # 5. 填充价格（只针对需要的故事）
     try:
         log("💰 获取价格数据...")
-        fill_prices(touched, toks, cfg)
+        fill_prices(stories, toks, cfg)
     except Exception as e:
         log(f"⚠ 价格获取失败: {e}")
     
-    # 清理旧数据
-    cut = now - retain_hours * 3600
+    # 6. 最终清理：只保留retain_hours内的故事
     old_count = len(stories)
-    stories = [s for s in stories if max(m["ts"] for m in s["members"]) >= cut]
+    stories = [s for s in stories if s["ts"] >= retain_cut]
+    
+    log(f"✓ 最终保留 {len(stories)} 个故事（清理了 {old_count - len(stories)} 个）")
+    
     state["stories"] = stories
     
     # 清理旧的 seen 记录
@@ -395,7 +467,7 @@ def main():
     # 生成摘要
     summary = f"""
 **统计**: {len(stories)} 个故事 (重大 {levels['big']}, 命中 {levels['hit']}, 低分 {levels['low']})  
-**新增**: {new_total} 条原始条目，更新 {len(touched)} 个故事  
+**新增**: {new_total} 条原始条目，重新聚类 {len(all_members)} 个成员  
 **数据源状态**:
 """
     for key, stat in source_stats.items():

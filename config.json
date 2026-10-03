@@ -288,11 +288,13 @@
       "big": true,
       "en": [
         "(?:ETF|ETP)s?\\b.{0,60}\\b(?:fil(?:es|ed|ing)|approv(?:es|ed|al)|launch(?:es|ed)?|debut(?:s|ed)?|list(?:s|ed|ing)|S-1|19b-4|reject(?:s|ed)?)",
-        "\\b(?:fil(?:es|ed|ing)|approv(?:es|ed|al)|launch(?:es|ed)?|reject(?:s|ed)?)\\b.{0,60}\\b(?:ETF|ETP)s?"
+        "\\b(?:fil(?:es|ed|ing)|approv(?:es|ed|al)|launch(?:es|ed)?|reject(?:s|ed)?)\\b.{0,60}\\b(?:ETF|ETP)s?",
+        "SEC\\b.{0,30}\\bapprov(?:es|ed|al)\\b.{0,40}\\b(?:bitcoin|ether|crypto|ETF|ETP)"
       ],
       "zh": [
         "ETF.{0,20}(?:申请|批准|获批|上市|推出|拒绝)",
-        "(?:申请|批准|获批|推出).{0,20}ETF"
+        "(?:申请|批准|获批|推出).{0,20}ETF",
+        "SEC.{0,20}(?:批准|获批).{0,30}(?:ETF|ETP|比特币|以太)"
       ]
     },
     {
@@ -518,7 +520,9 @@
         "交易大赛",
         "(?:Launchpool|Megadrop|活动|奖励).{0,10}瓜分",
         "(?:注册|充值|交易).{0,10}(?:送|赠|奖励)",
-        "促销活动"
+        "促销活动",
+        "(?:PoolX|Launchpad|Jumpstart).{0,30}空投",
+        "锁仓.{0,25}(?:空投|奖励)"
       ]
     },
     {
