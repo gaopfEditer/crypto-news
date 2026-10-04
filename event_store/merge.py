@@ -85,6 +85,9 @@ def merge_run(etype, out_dir, events_dir, now_ts=None):
     from store import reconcile_future, refresh_event_times  # noqa: E402
     reconcile_future(lib, seen_scheduled, now_ts, 14, lib.get("source_health"))
     refresh_event_times(lib, now_ts)
+    if etype == "unlock":
+        from unlock_postprocess import postprocess_unlock_library  # noqa: E402
+        postprocess_unlock_library(lib, now_ts)
     save_lib(path, lib)
     stats = {"added": len(lib["events"]) - before_total}
     lo = now_ts - 7 * 86400

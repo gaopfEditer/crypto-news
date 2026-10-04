@@ -88,10 +88,12 @@ const TYPES = {
   unlock: { label: "解锁", file: "unlock.json", sym: "ticker", time: "unlock_time_utc8",
     cols: [
       {k:"ticker",l:"代币",t:"s"},{k:"unlock_time_utc8",l:"时间",t:"time"},
+      {k:"impact_score",l:"冲击",t:"impact",sort:1},
       {k:"unlock_amount",l:"数量",t:"amt",alt:"amount"},{k:"computed_value_usd",l:"价值",t:"usd",alt:"value_usd_at_unlock"},
-      {k:"pct_circ",l:"占流通",t:"pct"},{k:"pre7d_change_pct",l:"前7天",t:"pct"},
+      {k:"pct_circ",l:"占流通",t:"pctcirc",alt:"pct_circ_display"},
+      {k:"pre7d_change_pct",l:"前7天",t:"pct"},
       {k:"post_unlock_change_pct",l:"事件后",t:"pct"},{k:"btc_post_change_pct",l:"BTC",t:"pct"},
-      {k:"relative_vs_btc_post_pp",l:"相对BTC",t:"pp",sort:1},{k:"unlock_source",l:"来源",t:"s",alt:"sources"},{k:"flags",l:"标记",t:"flags"}
+      {k:"relative_vs_btc_post_pp",l:"相对BTC",t:"pp"},{k:"unlock_source",l:"来源",t:"s",alt:"sources"},{k:"flags",l:"标记",t:"flags"}
     ]},
   delist: { label: "下架", file: "delist.json", sym: "ticker", time: "delist_utc8",
     cols: [
@@ -195,6 +197,7 @@ function rangeTs(){
 }
 
 function passCancelled(e){
+  if(e.merged_into) return false;
   if(e.status!=="cancelled") return true;
   return showCancelled;
 }
@@ -263,10 +266,23 @@ function applySortKey(k){
 
 function cellVal(e,col){
   if(col.k==="_rel") return relBtc(e);
+  if(col.t==="impact") return e.impact_score!=null?e.impact_score:fld(e,"impact_score");
+  if(col.t==="pctcirc"){
+    const d=fld(e,"pct_circ_display",col.alt)||fld(e,col.k,col.alt);
+    return d;
+  }
   return fld(e,col.k,col.alt);
 }
 function renderCell(e,col){
   const v=cellVal(e,col);
+  if(col.t==="impact") return v==null?"—":`<span class="num">${Number(v)}</span>`;
+  if(col.t==="pctcirc"){
+    const basis=fld(e,"pct_circ_basis");
+    const tip=basis?` <span class="badge" title="口径">${esc(basis)}</span>`:"";
+    if(v==="异常"||fld(e,"pct_circ_anomaly")) return `<span class="badge">异常</span>${tip}`;
+    if(v==null||v==="") return "—"+tip;
+    return fmtPct(Number(v))+tip;
+  }
   if(col.t==="pct") return fmtPct(v);
   if(col.t==="pp") return fmtPp(v);
   if(col.t==="usd") return fmtUsd(v);
@@ -278,7 +294,15 @@ function renderCell(e,col){
     return esc(shortT(v))+soon;
   }
   if(col.t==="link") return v?`<a href="${esc(v)}" target="_blank" rel="noopener">链接</a>`:"—";
-  if(col.t==="flags") return v?String(v).split(";").map(x=>`<span class="badge">${esc(x.trim().split("(")[0])}</span>`).join(""):"";
+  if(col.t==="flags") {
+    if(!v) return "—";
+    const conflict=/conflict|anomaly/i;
+    return String(v).split(";").map(x=>{
+      const t=x.trim().split("(")[0];
+      const cls=conflict.test(t)?"badge soon":"badge";
+      return `<span class="${cls}">${esc(t)}</span>`;
+    }).join("");
+  }
   return esc(v);
 }
 

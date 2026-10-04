@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "notes": "Hand-curated unlock rows merged after each unlock_tracker run. data_source=manual.",
+  "overrides": [
+    {
+      "match": { "ticker": "ENA", "date_prefix": "2026-10-05" },
+      "fields": {
+        "amount": 1500000000,
+        "value_usd_source": null,
+        "source_amounts": "CoinMarketCap:171875000; Tokenomist/Unlocks:1410000000; RootData:171880000",
+        "source_times_utc8": "RootData:2026-10-05 00:00; CoinMarketCap:2026-10-05 08:00; Tokenomist/PANews:2026-10-05 15:00",
+        "source_urls": "https://ethena.fi/posts/ecosystem-update-2025-08-27 | https://tokenomist.ai/ethena/unlock-events | https://coinmarketcap.com/currencies/ethena/",
+        "recipients": "早期投资人(剩余 vesting 一次性释放)",
+        "unlock_type": "cliff",
+        "note": "Ethena Foundation 2025-08-27 公告将剩余投资人 vesting 自 2026-10-05 起一次性释放；数量按官方表述与 Tokenomist 测算约 14–15 亿 ENA（非 CMC 下次解锁行的 1.72 亿）。",
+        "flags": "date_conflict; amount_conflict; scheduled"
+      }
+    },
+    {
+      "match": { "ticker": "DBR", "date_prefix": "2026-10-17" },
+      "fields": {
+        "source_amounts": "CoinMarketCap:33.35%; Tokenomist:10.8%",
+        "flags": "pct_conflict; scheduled"
+      }
+    },
+    {
+      "match": { "ticker": "RAIN", "date_prefix": "2026-10-10" },
+      "fields": {
+        "flags": "single_source; source_conflict; scheduled",
+        "note": "仅 CoinMarketCap 列出大额解锁；Tokenomist 显示 RAIN 已全部解锁，存在来源冲突。"
+      }
+    }
+  ],
+  "events": [
+    {
+      "ticker": "HYPE",
+      "name": "Hyperliquid",
+      "unlock_time_utc8": "2026-10-06 08:00",
+      "unlock_type": "cliff",
+      "amount": 9917000,
+      "value_usd_source": null,
+      "pct_circ": null,
+      "pct_circ_basis": "tokenomist",
+      "recipients": "Core Contributors:9917000",
+      "sources": "manual/Tokenomist",
+      "source_urls": "https://tokenomist.ai/hyperliquid/unlock-events",
+      "flags": "scheduled",
+      "status": "scheduled",
+      "note": "Tokenomist：2026-10-06 08:00 (HKT) 核心贡献者约 991.7 万枚。联创另称 2026-10-07 团队 375 万枚为场外整批 OTC 卖给机构，非链上 cliff 解锁，不计入本条数量。"
+    },
+    {
+      "ticker": "TRUMP",
+      "name": "OFFICIAL TRUMP",
+      "unlock_time_utc8": "2026-10-18 08:00",
+      "unlock_type": "cliff",
+      "amount": 28700000,
+      "value_usd_source": 60700000,
+      "pct_circ": 3.8,
+      "pct_circ_basis": "tokenomist_pct_mcap",
+      "recipients": "Insiders/Creators",
+      "sources": "manual/Tokenomist",
+      "source_urls": "https://tokenomist.ai/official-trump/unlock-events | https://app.tokenomics.com/tokenomics/official-trump/unlocks",
+      "flags": "scheduled",
+      "status": "scheduled",
+      "note": "Tokenomist/Tokenomics：2026-10-18 约 2870 万枚 (~3.8% MCAP)，归属内部/创作者分配。"
+    }
+  ]
+}

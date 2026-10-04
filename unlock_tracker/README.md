@@ -54,7 +54,7 @@ python3 unlock_tracker.py --start 2026-09-24 --end 2026-10-01 --now "2026-10-01 
 4. **合并去重**：同一 symbol、不同来源、时间相差 ≤48h 的事件视为同一次解锁。合并后的主字段按优先级取：新闻/手工 > CMC > DefiLlama。会打以下标记：
    - `single_source`：只有一个来源
    - `date_conflict(Nh)`：来源之间时间相差超过 6h
-   - `amount_conflict`：来源之间数量相差超过 25%
+   - `amount_conflict`：来源之间数量相差超过 **5%**（事件库入库见 `event_store/README.md`）
    - `short_post_window`：解锁后不足 24h
    - `no_price_data`：没拿到价格
    - 只统计已经发生的事件；未来的事件不参与合并

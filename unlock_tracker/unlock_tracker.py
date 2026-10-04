@@ -338,7 +338,7 @@ def merge_events(events):
             if spread > 6 * H:
                 flags.append(f"date_conflict({spread / H:.0f}h)")
             amts = [x["amount"] for x in c if x.get("amount")]
-            if len(amts) > 1 and max(amts) / min(amts) > 1.25:
+            if len(amts) > 1 and max(amts) / min(amts) > 1.05:
                 flags.append("amount_conflict")
             p["flags"] = flags
             merged.append(p)
