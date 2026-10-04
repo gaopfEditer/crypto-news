@@ -77,20 +77,16 @@ jobs:
           cp events.html deploy/
           cp unlocks.html deploy/
           
-          # 保留 gh-pages 上事件库与各 tracker 缓存
+          # 保留 gh-pages 上事件库与各 tracker 缓存（ls-tree 无匹配时仍 exit 0，须检查是否有输出）
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
             git fetch origin gh-pages
-            if git ls-tree origin/gh-pages events >/dev/null 2>&1; then
+            if [ -n "$(git ls-tree origin/gh-pages events 2>/dev/null)" ]; then
               git archive origin/gh-pages events | tar -x -C deploy/
               echo "✓ 已保留 events/ 事件库"
             fi
-            if git ls-tree origin/gh-pages event_cache >/dev/null 2>&1; then
+            if [ -n "$(git ls-tree origin/gh-pages event_cache 2>/dev/null)" ]; then
               git archive origin/gh-pages event_cache | tar -x -C deploy/
               echo "✓ 已保留 event_cache/"
-            fi
-            if git ls-tree origin/gh-pages unlock_cache >/dev/null 2>&1; then
-              git archive origin/gh-pages unlock_cache | tar -x -C deploy/
-              echo "✓ 已保留 unlock_cache/ (兼容)"
             fi
           fi
           
