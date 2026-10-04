@@ -121,13 +121,28 @@ def snapshot_from_dir(out_dir):
     }
 
 
-def write_snapshot(out_dir, deploy_unlocks_dir):
+def write_snapshot(out_dir, deploy_unlocks_dir, min_keep_ratio=0.8):
     snap = snapshot_from_dir(out_dir)
     os.makedirs(deploy_unlocks_dir, exist_ok=True)
     path = os.path.join(deploy_unlocks_dir, snap["snapshot_date"] + ".json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(snap, f, ensure_ascii=False, indent=2)
-    return snap
+    new_n = len(snap.get("events") or [])
+    skipped = False
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            old = json.load(f)
+        old_n = len(old.get("events") or [])
+        if old_n > 0 and new_n < old_n * min_keep_ratio:
+            print(
+                f"::warning title=解锁快照未覆盖::"
+                f"{snap['snapshot_date']} 新结果 {new_n} 条 < 已有 {old_n} 条的 {int(min_keep_ratio * 100)}%，保留旧 JSON",
+                file=sys.stderr,
+            )
+            skipped = True
+            snap = old
+    if not skipped:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(snap, f, ensure_ascii=False, indent=2)
+    return snap, skipped
 
 
 def rebuild_index(deploy_unlocks_dir, keep_days=60):
@@ -166,7 +181,7 @@ def seed_fixtures(repo_root, deploy_unlocks_dir):
         if os.path.isdir(sub) and os.path.isfile(os.path.join(sub, "run_meta.json")):
             target = os.path.join(deploy_unlocks_dir, name + ".json")
             if not os.path.isfile(target):
-                write_snapshot(sub, deploy_unlocks_dir)
+                write_snapshot(sub, deploy_unlocks_dir)[0]
 
 
 def main(argv=None):
@@ -177,9 +192,14 @@ def main(argv=None):
     out_dir, deploy_dir = argv[0], argv[1]
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     seed_fixtures(repo_root, deploy_dir)
-    snap = write_snapshot(out_dir, deploy_dir)
+    snap, skipped = write_snapshot(out_dir, deploy_dir)
     index = rebuild_index(deploy_dir)
-    print(json.dumps({"snapshot": snap["snapshot_date"], "events": len(snap["events"]), "index_dates": [s["date"] for s in index["snapshots"]]}))
+    print(json.dumps({
+        "snapshot": snap["snapshot_date"],
+        "events": len(snap["events"]),
+        "skipped_overwrite": skipped,
+        "index_dates": [s["date"] for s in index["snapshots"]],
+    }))
     return 0
 
 

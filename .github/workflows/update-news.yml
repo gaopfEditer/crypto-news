@@ -84,6 +84,15 @@ jobs:
               git archive origin/gh-pages unlocks | tar -x -C deploy/
               echo "✓ 已保留 unlocks/ 快照数据"
             fi
+            if git ls-tree origin/gh-pages unlock_cache >/dev/null 2>&1; then
+              mkdir -p deploy/unlock_cache
+              git archive origin/gh-pages unlock_cache | tar -x -C deploy/
+              echo "✓ 已保留 unlock_cache/ CMC 快照"
+            elif git ls-tree origin/gh-pages unlocks/cache >/dev/null 2>&1; then
+              mkdir -p deploy/unlock_cache/cmc_snapshots
+              git archive origin/gh-pages unlocks/cache/cmc_snapshots | tar -x -C deploy/unlock_cache/
+              echo "✓ 已从旧路径迁移 unlocks/cache → unlock_cache"
+            fi
           fi
           
           # 创建 _config.yml 禁用 Jekyll

@@ -41,12 +41,9 @@ jobs:
           fi
 
       - name: 恢复 CMC 快照缓存
+        working-directory: repo
         run: |
-          mkdir -p repo/unlock_tracker/cache/cmc_snapshots
-          if [ -d publish/unlocks/cache/cmc_snapshots ]; then
-            cp -a publish/unlocks/cache/cmc_snapshots/. repo/unlock_tracker/cache/cmc_snapshots/
-            echo "✓ 已恢复 CMC 快照缓存"
-          fi
+          python3 unlock_tracker/cmc_cache_util.py restore publish unlock_tracker/cache/cmc_snapshots
 
       - name: 运行 unlock_tracker
         id: run
@@ -64,8 +61,7 @@ jobs:
         run: |
           mkdir -p publish/unlocks
           python3 unlock_tracker/export_json.py "${{ steps.run.outputs.out_dir }}" publish/unlocks
-          mkdir -p publish/unlocks/cache
-          cp -a unlock_tracker/cache/cmc_snapshots publish/unlocks/cache/ 2>/dev/null || true
+          python3 unlock_tracker/cmc_cache_util.py publish publish unlock_tracker/cache/cmc_snapshots --keep-days 30
           cp unlocks.html publish/
 
       - name: 部署到 gh-pages
@@ -91,4 +87,8 @@ jobs:
           dates = [s['date'] for s in idx.get('snapshots', [])[:8]]
           print('最近快照:', ', '.join(dates))
           print('共', len(idx.get('snapshots', [])), '天')
+          cmc = 'publish/unlock_cache/cmc_snapshots'
+          import os
+          if os.path.isdir(cmc):
+              print('CMC 缓存文件数:', len([x for x in os.listdir(cmc) if x.endswith('.json')]))
           " >> $GITHUB_STEP_SUMMARY

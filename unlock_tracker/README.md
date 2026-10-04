@@ -49,7 +49,7 @@ python3 unlock_tracker.py --start 2026-09-24 --end 2026-10-01 --now "2026-10-01 
 
 ## 数据源与逻辑
 1. **DefiLlama**：解析 `https://defillama.com/unlocks` 页面里内嵌的 `__NEXT_DATA__`（约 370 个协议，含历史和未来事件）。`api.llama.fi/emissions` 是付费接口（HTTP 402），所以不用。同一代币 12 小时内的多笔事件合并成一次解锁。
-2. **CoinMarketCap**：`api.coinmarketcap.com/data-api/v3/token-unlock/listing`（公开，无需登录）。这个接口**只给每个代币的"下一次"解锁**，所以程序每次运行会存一份快照到 `cache/cmc_snapshots/`，之后查询过去的窗口时会用历史快照。**需要定期运行（比如每天一次，用 cron）才能覆盖过去的窗口**；第一次运行时它对过去窗口没有贡献。
+2. **CoinMarketCap**：`api.coinmarketcap.com/data-api/v3/token-unlock/listing`（公开，无需登录）。这个接口**只给每个代币的"下一次"解锁**，所以程序每次运行会存一份快照到 `cache/cmc_snapshots/`，之后查询过去的窗口时会用历史快照。**需要定期运行（比如每天一次，用 cron）才能覆盖过去的窗口**；第一次运行时它对过去窗口没有贡献。在 gh-pages 上由 workflow 持久化到 **`unlock_cache/cmc_snapshots/`**（保留最近 30 天）。
 3. **新闻 / 手工源**：Tokenomist 的历史数据需要登录，CryptoRank 被 Cloudflare 拦截（403），所以 Tokenomist 的数据通过 PANews 等转载的快讯（`--news-url`）或手工 CSV 引入。
 4. **合并去重**：同一 symbol、不同来源、时间相差 ≤48h 的事件视为同一次解锁。合并后的主字段按优先级取：新闻/手工 > CMC > DefiLlama。会打以下标记：
    - `single_source`：只有一个来源
