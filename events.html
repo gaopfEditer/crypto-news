@@ -110,8 +110,9 @@ const TYPES = {
     ]}
 };
 
-let libs = {}, curType = "unlock", sortKey = "_rel", sortDir = -1;
+let libs = {}, curType = "unlock", sortKey = "_event_ts", sortDir = 1;
 let rangeMode = "7", customFrom = null, customTo = null, showFuture = false;
+const TIME_SORT = "_event_ts";
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -190,7 +191,42 @@ function renderTabs(){
     const n=filteredEvents(t).length;
     return `<span class="tab ${t===curType?"on":""}" data-t="${t}">${TYPES[t].label}<span class="n">${n}</span></span>`;
   }).join("");
-  document.querySelectorAll(".tab").forEach(el=>el.onclick=()=>{ curType=el.dataset.t; sortKey=TYPES[curType].cols.find(c=>c.sort)?.k||"_rel"; renderAll(); syncUrl(); });
+  document.querySelectorAll(".tab").forEach(el=>el.onclick=()=>{ curType=el.dataset.t; resetTimeSort(); renderAll(); syncUrl(); });
+}
+
+function eventTime(e){ return e.event_ts || 0; }
+function resetTimeSort(){ sortKey = TIME_SORT; sortDir = 1; }
+function sortArrow(active, asc){ return active ? (asc ? " ▲" : " ▼") : ""; }
+
+function sortedEvents(){
+  const cfg = TYPES[curType];
+  const rows = filteredEvents(curType).slice();
+  rows.sort((a,b)=>{
+    if(sortKey === TIME_SORT){
+      return sortDir * (eventTime(a) - eventTime(b));
+    }
+    const col = cfg.cols.find(c => c.k === sortKey) || {k: sortKey};
+    const av = sortKey === "_rel" ? relBtc(a) : cellVal(a, col);
+    const bv = sortKey === "_rel" ? relBtc(b) : cellVal(b, col);
+    if(av == null && bv == null) return eventTime(a) - eventTime(b);
+    if(av == null) return 1;
+    if(bv == null) return -1;
+    const cmp = sortDir * (av - bv);
+    return cmp !== 0 ? cmp : sortDir * (eventTime(a) - eventTime(b));
+  });
+  return rows;
+}
+
+function applySortKey(k){
+  if(k === TIME_SORT){
+    if(sortKey === TIME_SORT) sortDir = -sortDir;
+    else { sortKey = TIME_SORT; sortDir = 1; }
+  } else {
+    sortDir = (sortKey === k) ? -sortDir : -1;
+    sortKey = k;
+  }
+  renderMain();
+  renderDaily();
 }
 
 function cellVal(e,col){
@@ -211,20 +247,19 @@ function renderCell(e,col){
 
 function renderMain(){
   const cfg=TYPES[curType];
-  let rows=filteredEvents(curType).slice();
-  if(sortKey){
-    rows.sort((a,b)=>{
-      const av=sortKey==="_rel"?relBtc(a):cellVal(a,cfg.cols.find(c=>c.k===sortKey)||{k:sortKey});
-      const bv=sortKey==="_rel"?relBtc(b):cellVal(b,cfg.cols.find(c=>c.k===sortKey)||{k:sortKey});
-      if(av==null&&bv==null)return 0; if(av==null)return 1; if(bv==null)return -1;
-      return sortDir*(av-bv);
-    });
-  }
+  const rows=sortedEvents();
   const thead=$("tblMain").querySelector("thead");
-  thead.innerHTML="<tr>"+cfg.cols.map(c=>`<th class="${c.sort?"sort num":""}" data-k="${c.k}">${c.l}${c.sort?" ▼":""}</th>`).join("")+"</tr>";
-  thead.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>{
-    const k=th.dataset.k; sortDir=(sortKey===k)?-sortDir:-1; sortKey=k; renderMain();
-  });
+  thead.innerHTML="<tr>"+cfg.cols.map(c=>{
+    const isTime=c.t==="time";
+    const sortable=isTime||c.sort;
+    const active=sortKey===TIME_SORT&&isTime||sortKey===c.k;
+    const asc=sortDir>0;
+    const k=isTime?TIME_SORT:c.k;
+    const cls=(sortable?(isTime||c.t==="pp"?"sort num":"sort"):"");
+    const hint=isTime?sortArrow(sortKey===TIME_SORT,asc):(c.sort&&active?sortArrow(true,asc):"");
+    return `<th class="${cls}" data-k="${k}">${c.l}${hint||""}</th>`;
+  }).join("")+"</tr>";
+  thead.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>applySortKey(th.dataset.k));
   const tb=$("tblMain").querySelector("tbody");
   tb.innerHTML=rows.map(e=>"<tr>"+cfg.cols.map(c=>{
     const sym=fld(e,cfg.sym);
@@ -235,19 +270,23 @@ function renderMain(){
 
 function renderDaily(){
   const cfg=TYPES[curType];
-  const ids=new Set(filteredEvents(curType).map(e=>e.id));
+  const rows=sortedEvents();
+  const timeActive=sortKey===TIME_SORT;
   const thead=$("tblDaily").querySelector("thead");
-  thead.innerHTML="<tr><th>代币</th><th>时间</th>"+[7,6,5,4,3,2,1].map(d=>`<th class="num">D-${d}</th>`).join("")+'<th class="num">合计</th></tr>';
+  thead.innerHTML='<tr><th>代币</th><th class="sort" data-k="'+TIME_SORT+'">时间'+sortArrow(timeActive,sortDir>0)+'</th>'+
+    [7,6,5,4,3,2,1].map(d=>`<th class="num">D-${d}</th>`).join("")+'<th class="num">合计</th></tr>';
+  thead.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>applySortKey(th.dataset.k));
   const tb=$("tblDaily").querySelector("tbody");
-  const lines=[];
-  filteredEvents(curType).forEach(e=>{
-    (e.pre7d_daily||[]).filter(d=>d.series!=="BTC"&&d.series!=="BTCUSDT").forEach(d=>{
-      lines.push({sym:fld(e,cfg.sym), t:shortT(fld(e,cfg.time)), d});
-    });
-  });
-  tb.innerHTML=lines.map(x=>`<tr><td><b>${esc(x.sym)}</b></td><td>${esc(x.t)}</td>`+
-    [7,6,5,4,3,2,1].map(k=>`<td class="num">${fmtPct(x.d["D-"+k+"_pct"])}</td>`).join("")+
-    `<td class="num">${fmtPct(x.d.total_7d_pct,2)}</td></tr>`).join("");
+  const symField=cfg.sym;
+  tb.innerHTML=rows.map(e=>{
+    const sym=fld(e,symField)||fld(e,"ticker");
+    const d=(e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT"&&(r.series===sym||r.ticker===sym))
+      || (e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT");
+    if(!d) return "";
+    return `<tr><td><b>${esc(sym)}</b></td><td>${esc(shortT(fld(e,cfg.time)))}</td>`+
+      [7,6,5,4,3,2,1].map(k=>`<td class="num">${fmtPct(d["D-"+k+"_pct"])}</td>`).join("")+
+      `<td class="num">${fmtPct(d.total_7d_pct,2)}</td></tr>`;
+  }).join("");
 }
 
 function renderObs(){
@@ -279,13 +318,13 @@ async function init(){
   parseParams();
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#rangeSeg button").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on"); rangeMode=b.dataset.r; customFrom=customTo=null; $("fromD").value=""; $("toD").value=""; renderAll();
+    b.classList.add("on"); rangeMode=b.dataset.r; customFrom=customTo=null; $("fromD").value=""; $("toD").value=""; resetTimeSort(); renderAll();
   });
-  $("fromD").onchange=$("toD").onchange=()=>{ rangeMode="custom"; renderAll(); };
-  $("showFuture").onchange=()=>{ showFuture=$("showFuture").checked; renderAll(); };
+  $("fromD").onchange=$("toD").onchange=()=>{ rangeMode="custom"; resetTimeSort(); renderAll(); };
+  $("showFuture").onchange=()=>{ showFuture=$("showFuture").checked; resetTimeSort(); renderAll(); };
   for(const t of Object.keys(TYPES)) libs[t]=await loadLib(t);
   $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
-  sortKey=TYPES[curType].cols.find(c=>c.sort)?.k||"_rel";
+  resetTimeSort();
   renderAll();
 }
 init();
