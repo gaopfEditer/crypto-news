@@ -74,6 +74,17 @@ jobs:
           cp calendar.json deploy/
           cp index.html deploy/
           cp calendar.html deploy/
+          cp unlocks.html deploy/
+          
+          # 保留 gh-pages 上由解锁 workflow 写入的数据
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            if git show origin/gh-pages:unlocks/index.json >/dev/null 2>&1; then
+              mkdir -p deploy/unlocks
+              git archive origin/gh-pages unlocks | tar -x -C deploy/
+              echo "✓ 已保留 unlocks/ 快照数据"
+            fi
+          fi
           
           # 创建 _config.yml 禁用 Jekyll
           echo "" > deploy/.nojekyll

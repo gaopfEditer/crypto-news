@@ -1,0 +1,94 @@
+name: 更新解锁快照
+
+on:
+  schedule:
+    # 每天 UTC 23:50（北京时间次日 07:50）
+    - cron: '50 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unlocks-data
+  cancel-in-progress: false
+
+jobs:
+  unlocks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出 main
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 拉取 gh-pages 现有站点
+        working-directory: repo
+        run: |
+          mkdir -p publish
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            git archive origin/gh-pages | tar -x -C publish
+            echo "✓ 已合并 gh-pages 现有文件"
+          else
+            touch publish/.nojekyll
+            echo "ℹ gh-pages 不存在，将新建"
+          fi
+
+      - name: 恢复 CMC 快照缓存
+        run: |
+          mkdir -p repo/unlock_tracker/cache/cmc_snapshots
+          if [ -d publish/unlocks/cache/cmc_snapshots ]; then
+            cp -a publish/unlocks/cache/cmc_snapshots/. repo/unlock_tracker/cache/cmc_snapshots/
+            echo "✓ 已恢复 CMC 快照缓存"
+          fi
+
+      - name: 运行 unlock_tracker
+        id: run
+        working-directory: repo
+        run: |
+          set -e
+          OUT="unlock_tracker/output/latest"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          python3 unlock_tracker/unlock_tracker.py --quiet --out "$OUT" --cache unlock_tracker/cache
+          echo "out_dir=$OUT" >> $GITHUB_OUTPUT
+
+      - name: 导出 JSON 并更新 index
+        working-directory: repo
+        run: |
+          mkdir -p publish/unlocks
+          python3 unlock_tracker/export_json.py "${{ steps.run.outputs.out_dir }}" publish/unlocks
+          mkdir -p publish/unlocks/cache
+          cp -a unlock_tracker/cache/cmc_snapshots publish/unlocks/cache/ 2>/dev/null || true
+          cp unlocks.html publish/
+
+      - name: 部署到 gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo/publish
+          publish_branch: gh-pages
+          force_orphan: false
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '更新解锁快照'
+
+      - name: 输出摘要
+        working-directory: repo
+        run: |
+          echo "### 🔓 解锁快照更新" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+          import json
+          with open('publish/unlocks/index.json', encoding='utf-8') as f:
+              idx = json.load(f)
+          dates = [s['date'] for s in idx.get('snapshots', [])[:8]]
+          print('最近快照:', ', '.join(dates))
+          print('共', len(idx.get('snapshots', [])), '天')
+          " >> $GITHUB_STEP_SUMMARY

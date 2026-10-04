@@ -1,0 +1,49 @@
+{
+ "window_utc8": [
+  "2026-09-27 07:58",
+  "2026-10-04 07:58"
+ ],
+ "now_utc8": "2026-10-04 07:58",
+ "generated_utc8": "2026-10-04 07:58",
+ "args": {
+  "start": null,
+  "end": null,
+  "now": null,
+  "min_usd": 5000000.0,
+  "min_pct": 1.0,
+  "min_usd_floor": 500000.0,
+  "sources": "defillama,cmc",
+  "news_url": [],
+  "extra_events": null,
+  "max_tokens": 40,
+  "out": null,
+  "cache": "/workspace/trading-watch/unlock_tracker/cache",
+  "refresh": false,
+  "quiet": true
+ },
+ "sources": {
+  "DefiLlama": {
+   "generatedAt": "2026-10-04 06:04",
+   "protocols": 370,
+   "events_raw": 155,
+   "url": "https://defillama.com/unlocks"
+  },
+  "CoinMarketCap": {
+   "snapshots": 4,
+   "events_raw": 729,
+   "latest_snapshot": "20261004T0759.json",
+   "new_snapshot": true,
+   "url": "https://coinmarketcap.com/token-unlocks/"
+  }
+ },
+ "errors": [],
+ "unmapped": [],
+ "price_notes": [],
+ "counts": {
+  "raw_events": 884,
+  "raw_events_already_happened": 634,
+  "merged_in_window": 590,
+  "kept": 24,
+  "dropped_by_cap": 0
+ }
+}
