@@ -6,7 +6,8 @@
       "match": { "ticker": "ENA", "date_prefix": "2026-10-05" },
       "fields": {
         "amount": 1500000000,
-        "value_usd_source": null,
+        "pct_circ": 14.0,
+        "pct_circ_basis": "tokenomist_derived",
         "source_amounts": "CoinMarketCap:171875000; Tokenomist/Unlocks:1410000000; RootData:171880000",
         "source_times_utc8": "RootData:2026-10-05 00:00; CoinMarketCap:2026-10-05 08:00; Tokenomist/PANews:2026-10-05 15:00",
         "source_urls": "https://ethena.fi/posts/ecosystem-update-2025-08-27 | https://tokenomist.ai/ethena/unlock-events | https://coinmarketcap.com/currencies/ethena/",
