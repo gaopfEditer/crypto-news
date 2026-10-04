@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>加密新闻看板</title>
+<style>
+:root{--bg:#0b0e11;--panel:#12161c;--panel2:#181d25;--line:#232a35;--txt:#d6dde6;--dim:#7d8896;--mute:#59626e;
+--up:#0ecb81;--down:#f6465d;--warn:#f0b90b;--acc:#3d8bfd;--big:#f6465d;--hit:#f0b90b;--new:#3d8bfd}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Menlo,monospace}
+a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:5;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px}
+.brand{font-weight:700;letter-spacing:.5px;color:var(--warn);font-family:Menlo,monospace}
+.clock{font-family:Menlo,monospace;color:var(--dim)}
+.health{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--dim);font-size:12px;cursor:default;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.ok{background:var(--up);box-shadow:0 0 6px var(--up)}.dot.warn{background:var(--warn)}.dot.down{background:var(--down);box-shadow:0 0 6px var(--down)}.dot.pending{background:var(--acc)}
+.poll{color:var(--dim);font-size:12px;font-family:Menlo,monospace}
+.sp{flex:1}
+button,select,input[type=text]{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font:inherit;font-size:12px}
+button{cursor:pointer}button:hover{border-color:#3a4554}
+button.on{background:#1f3350;border-color:var(--acc);color:#fff}
+.seg{display:inline-flex}.seg button{border-radius:0}.seg button:first-child{border-radius:4px 0 0 4px}.seg button:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
+.filters{border-top:1px solid var(--line);background:var(--panel)}
+.filters label{color:var(--dim);font-size:12px;display:inline-flex;align-items:center;gap:5px}
+input[type=range]{width:140px;accent-color:var(--warn)}
+.val{font-family:Menlo,monospace;color:var(--warn);min-width:30px;display:inline-block}
+.stats{color:var(--dim);font-size:12px;padding:6px 14px;border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap}
+.stats b{color:var(--txt);font-weight:600}
+.banner{margin:10px 14px;padding:8px 12px;border:1px solid #5a4a12;background:#2a230b;color:var(--warn);border-radius:4px;display:none}
+.list{padding:10px 14px 60px;display:flex;flex-direction:column;gap:8px;max-width:1200px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:4px;padding:9px 12px;position:relative}
+.card.big{border-left-color:var(--big);background:linear-gradient(90deg,#2a1218 0,var(--panel) 40%)}
+.card.hit{border-left-color:var(--hit)}
+.card.low{opacity:.62}.card.low:hover{opacity:1}
+.card.new{box-shadow:0 0 0 1px var(--new) inset}
+.hdr{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:3px}
+.b{font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.b.big{background:var(--big);border-color:var(--big);color:#fff;font-weight:700}
+.b.ev{color:#c9d4e2;background:#1d2430}.b.ev.isbig{color:#ff8a98;border-color:#5a2730}
+.b.low{color:var(--mute)}
+.b.new{background:var(--new);border-color:var(--new);color:#fff;font-weight:700}
+.b.multi{color:var(--up);border-color:#145c3d;background:#0d2a1e}
+.b.lang{color:var(--mute);font-family:Menlo,monospace}
+.score{margin-left:auto;font-family:Menlo,monospace;font-weight:700;font-size:14px}
+.score.big{color:var(--big)}.score.hit{color:var(--hit)}.score.low{color:var(--mute)}
+.title{font-size:15px;font-weight:600;color:#eef2f7;margin:2px 0}
+.title a{color:inherit}
+.alt{color:var(--dim);font-size:13px;margin-bottom:2px}
+.meta{color:var(--dim);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:3px}
+.meta .t{font-family:Menlo,monospace}
+.srcs a{margin-right:8px}
+.px{font-family:Menlo,monospace;font-size:12px;display:flex;gap:12px;flex-wrap:wrap;margin-top:3px}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--dim)}
+.why{color:var(--mute);font-size:12px;margin-top:3px}
+.sum{color:#9aa5b3;font-size:12px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.sum.open{display:block}
+.empty{color:var(--dim);padding:40px;text-align:center}
+@media (max-width:700px){.title{font-size:14px}.score{font-size:13px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <span class="brand">◆ CRYPTO NEWS WATCH</span>
+    <div class="nav" style="display:flex;gap:4px;margin-left:12px">
+      <a href="index.html" class="nav-link active" style="padding:4px 12px;border:1px solid var(--acc);border-radius:4px;background:var(--acc);color:#fff;font-size:12px;text-decoration:none">新闻</a>
+      <a href="calendar.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">日历</a>
+    </div>
+    <span class="clock" id="clock">--</span>
+    <span class="health" id="health"></span>
+    <span class="sp"></span>
+    <span class="poll" id="poll">加载中…</span>
+  </div>
+  <div class="bar filters">
+    <span class="seg"><button id="sortTime">最新</button><button id="sortScore">最重要</button></span>
+    <label>代币 <select id="fToken"><option value="">全部</option></select></label>
+    <label>事件 <select id="fType"><option value="">全部</option></select></label>
+    <label>来源 <select id="fSource"><option value="">全部</option></select></label>
+    <label><input type="checkbox" id="fBig"> 只看重大</label>
+    <label>最低分 <input type="range" id="fMin" min="-10" max="20" step="0.5"><span class="val" id="fMinV"></span></label>
+    <input type="text" id="fQ" placeholder="搜索标题/摘要" size="14">
+    <span class="sp"></span>
+    <label><input type="checkbox" id="optNotify"> 重大通知</label>
+    <label><input type="checkbox" id="optSound"> 声音</label>
+    <button id="markRead" title="清除 NEW 标记">全部已读</button>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+<div class="banner" id="banner"></div>
+<div class="list" id="list"><div class="empty">加载中…</div></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem("nw_"+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("nw_"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+let data = null;
+let dataSource = null; // 记录数据来源
+let lastView = LS.get("last_view", null);
+const notified = new Set(LS.get("notified", []));
+const expanded = new Set();
+const st = {
+  sort: LS.get("sort", "time"), token: LS.get("token", ""), type: LS.get("type", ""), source: LS.get("source", ""),
+  big: LS.get("big", false), min: LS.get("min", 5), q: "", notify: LS.get("notify", false), sound: LS.get("sound", false)
+};
+
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function safeUrl(u){ return /^https?:\/\//i.test(u || "") ? u : "#"; }
+const pad = n => String(n).padStart(2, "0");
+function t8(ts, withDate){ // 显示为 UTC+8
+  const d = new Date((ts + 8*3600) * 1000);
+  const hm = pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes());
+  return withDate === false ? hm : pad(d.getUTCMonth()+1) + "-" + pad(d.getUTCDate()) + " " + hm;
+}
+function nowS(){ return Date.now()/1000; }
+function rel(ts){
+  const s = Math.max(0, Date.now()/1000 - ts);
+  if (s < 60) return "刚刚";
+  if (s < 3600) return Math.floor(s/60) + " 分钟前";
+  if (s < 86400) return Math.floor(s/3600) + " 小时" + (Math.floor(s%3600/60) ? Math.floor(s%3600/60) + " 分" : "") + "前";
+  return Math.floor(s/86400) + " 天前";
+}
+function fmtPx(p){ if (p == null) return "N/A"; return p >= 100 ? "$" + p.toLocaleString("en-US",{maximumFractionDigits:2}) : p >= 1 ? "$" + p.toFixed(4) : "$" + Number(p.toPrecision(5)); }
+function isZh(s){ return /[\u4e00-\u9fff]/.test(s || ""); }
+
+// ---------------------------------------------------------------- data
+async function loadData(){
+  const cacheBust = Math.floor(Date.now() / 30000); // 30秒缓存
+  const fallbackUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json";
+  
+  // 先尝试本地 data.json（适用于 gh-pages 部署）
+  try {
+    const r = await fetch("./data.json?_=" + cacheBust);
+    if (r.ok) {
+      data = await r.json();
+      dataSource = "本地 (gh-pages)";
+      if (lastView === null) {
+        lastView = data.updated;
+        LS.set("last_view", lastView);
+      }
+      const fresh = data.stories.filter(it => 
+        it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
+      );
+      if (fresh.length) alertBig(fresh);
+      return;
+    }
+  } catch(e) {
+    console.log("本地 data.json 不可用，尝试回退源:", e.message);
+  }
+  
+  // 回退到 GitHub raw URL（适用于 main 分支部署）
+  const r = await fetch(fallbackUrl + "?_=" + cacheBust);
+  if (!r.ok) throw new Error("HTTP " + r.status + " (回退源)");
+  data = await r.json();
+  dataSource = "GitHub raw (gh-pages 分支)";
+  
+  if (lastView === null) {
+    lastView = data.updated;
+    LS.set("last_view", lastView);
+  }
+  
+  const fresh = data.stories.filter(it => 
+    it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
+  );
+  if (fresh.length) alertBig(fresh);
+}
+
+// ---------------------------------------------------------------- notify
+let audioCtx = null;
+function beep(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime;
+    [0, 0.18, 0.36].forEach((dt, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "square"; o.frequency.value = i === 2 ? 1320 : 880;
+      g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.12, t0 + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.15);
+      o.connect(g).connect(audioCtx.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.16);
+    });
+  }catch(e){}
+}
+function alertBig(list){
+  for (const it of list){
+    notified.add(it.id);
+    if (st.notify && "Notification" in window && Notification.permission === "granted"){
+      try{
+        const n = new Notification("【重大】" + (it.event_label || "") + " · " + it.score, { body: it.title + (it.multi ? "\n多源确认: " + it.sources.join("/") : ""), tag: it.id });
+        n.onclick = () => { window.focus(); window.open(safeUrl(it.url), "_blank", "noopener"); };
+      }catch(e){}
+    }
+  }
+  LS.set("notified", Array.from(notified).slice(-500));
+  if (st.sound) beep();
+}
+
+// ---------------------------------------------------------------- render
+function renderHealth(){
+  if (!data) return;
+  const h = $("health"); h.innerHTML = "";
+  const names = {ok:"正常", warn:"有失败", down:"故障", pending:"等待首次", disabled:"已禁用"};
+  for (const [k, s] of Object.entries(data.sources)){
+    if (!s.enabled) continue;
+    const c = document.createElement("span"); c.className = "chip";
+    const tip = [s.label + "：" + names[s.health], "最近成功 " + (s.last_ok_utc8 || "无") + " (UTC+8)",
+      "最近失败 " + (s.last_fail_utc8 || "无"), "连续失败 " + s.fails + " 次", "上次返回 " + (s.last_count == null ? "-" : s.last_count) + " 条 / 新 " + (s.last_new == null ? "-" : s.last_new) + " 条"];
+    if (s.last_error) tip.push("错误: " + s.last_error);
+    c.title = tip.join("\n");
+    c.innerHTML = '<span class="dot ' + esc(s.health) + '"></span>' + esc(s.label) + (s.fails ? ' <span style="color:var(--down)">×' + s.fails + "</span>" : "");
+    h.appendChild(c);
+  }
+  renderPoll();
+}
+
+function renderPoll(){
+  if (!data) return;
+  const age = nowS() - data.updated;
+  const ageMin = Math.floor(age / 60);
+  const repo = window.location.pathname.split('/')[1] || 'crypto-news';
+  const workflowUrl = `https://github.com/gaopfEditer/${repo}/actions/workflows/update-news.yml`;
+  
+  let txt = `最后更新 ${data.updated_utc8} (UTC+8)`;
+  if (age < 3600) {
+    txt += ` · ${ageMin} 分钟前`;
+  } else {
+    txt += ` · ${Math.floor(age / 3600)} 小时前`;
+  }
+  txt += ` · `;
+  
+  const poll = $("poll");
+  poll.textContent = txt;
+  
+  const link = document.createElement('a');
+  link.href = workflowUrl;
+  link.textContent = '查看工作流';
+  link.target = '_blank';
+  link.style.color = 'var(--acc)';
+  poll.appendChild(link);
+  
+  // 显示数据源
+  if (dataSource) {
+    const src = document.createElement('span');
+    src.textContent = ` · 数据: ${dataSource}`;
+    src.style.color = 'var(--mute)';
+    src.style.fontSize = '11px';
+    poll.appendChild(src);
+  }
+  
+  const down = Object.values(data.sources).filter(s => s.enabled && s.health === "down");
+  const b = $("banner");
+  if (down.length){ 
+    b.style.display = "block"; 
+    b.textContent = "⚠ 数据源故障：" + down.map(s => s.label + "（" + (s.last_error || "无成功记录") + "）").join("；"); 
+  } else {
+    b.style.display = "none";
+  }
+}
+
+function passes(it){
+  if (st.big && it.level !== "big") return false;
+  if (it.score < st.min && !(st.big && it.level === "big")) return false;
+  if (st.token && !it.tokens.includes(st.token)) return false;
+  if (st.type && (it.event || "none") !== st.type) return false;
+  if (st.source && !it.members.some(m => m.source === st.source)) return false;
+  if (st.q){ const q = st.q.toLowerCase(); if (!((it.title + " " + (it.alt_title || "") + " " + (it.summary || "")).toLowerCase().includes(q))) return false; }
+  return true;
+}
+
+function card(it){
+  const isNew = lastView !== null && it.first_seen > lastView;
+  const cls = ["card", it.level, isNew ? "new" : ""].join(" ");
+  const evBig = data.meta.events.find(e => e.key === it.event && e.big);
+  let h = '<div class="' + cls + '" data-id="' + esc(it.id) + '"><div class="hdr">';
+  if (it.level === "big") h += '<span class="b big">重大</span>';
+  h += '<span class="b ev' + (evBig ? " isbig" : "") + '">' + esc(it.event_label || (it.tokens.length ? "关注代币" : "其他")) + "</span>";
+  if (it.level === "low") h += '<span class="b low">低分</span>';
+  if (isNew) h += '<span class="b new">NEW</span>';
+  if (it.multi) h += '<span class="b multi" title="' + esc(it.sources.join(" / ")) + '">多源确认 ×' + it.sources.length + "</span>";
+  for (const t of it.tokens.slice(0, 5)) h += '<span class="b">' + esc(t) + "</span>";
+  h += '<span class="b lang">' + (isZh(it.title) ? "中" : "EN") + (it.alt_title ? "/" + (isZh(it.alt_title) ? "中" : "EN") : "") + "</span>";
+  h += '<span class="score ' + it.level + '" title="阈值 ' + data.meta.threshold + '">' + Number(it.score).toFixed(it.score % 1 ? 1 : 0) + "</span></div>";
+  h += '<div class="title"><a href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(it.title) + "</a></div>";
+  if (it.alt_title) h += '<div class="alt">' + esc(it.alt_title) + "</div>";
+  h += '<div class="meta"><span class="t" title="发布时间 (UTC+8)">' + t8(it.ts) + " (UTC+8) · " + rel(it.ts) + "</span>";
+  h += '<span class="t" title="检测到的时间">检测 ' + t8(it.first_seen, false) + (it.seeded ? "（启动回填）" : "") + "</span>";
+  const seenCnt = {};
+  h += '<span class="srcs">';
+  for (const m of it.members){
+    seenCnt[m.label] = (seenCnt[m.label] || 0) + 1;
+    const lbl = m.label + (seenCnt[m.label] > 1 ? "#" + seenCnt[m.label] : "");
+    h += '<a href="' + esc(safeUrl(m.url)) + '" target="_blank" rel="noopener noreferrer" title="' + esc(t8(m.ts) + " · " + m.title) + '">' + esc(lbl) + " ↗</a>";
+  }
+  h += "</span></div>";
+  const px = Object.entries(it.prices || {});
+  if (px.length){
+    h += '<div class="px">';
+    for (const [t, p] of px){
+      const c = p.chg1h == null ? "flat" : p.chg1h > 0 ? "up" : p.chg1h < 0 ? "down" : "flat";
+      h += '<span title="检测时价格（' + esc(p.src) + "，" + t8(p.at) + ' UTC+8）">' + esc(t) + " " + fmtPx(p.price) + ' <span class="' + c + '">1h ' + (p.chg1h == null ? "N/A" : (p.chg1h > 0 ? "+" : "") + p.chg1h.toFixed(2) + "%") + '</span> <span style="color:var(--mute)">' + esc(p.src) + " @" + t8(p.at, false) + "</span></span>";
+    }
+    h += "</div>";
+  }
+  if (it.reasons && it.reasons.length) h += '<div class="why">原因：' + esc(it.reasons.join("；")) + "</div>";
+  if (it.summary) h += '<div class="sum' + (expanded.has(it.id) ? " open" : "") + '" data-sum="' + esc(it.id) + '">' + esc(it.summary) + "</div>";
+  return h + "</div>";
+}
+
+function render(){
+  if (!data) return;
+  
+  const rank = {big: 2, hit: 1, low: 0};
+  const all = data.stories;
+  const shown = all.filter(passes);
+  if (st.sort === "score") shown.sort((a, b) => rank[b.level] - rank[a.level] || b.score - a.score || b.ts - a.ts);
+  else shown.sort((a, b) => b.ts - a.ts);
+  
+  // 代币下拉
+  const cnt = {};
+  for (const it of all) for (const t of it.tokens) cnt[t] = (cnt[t] || 0) + 1;
+  const sel = $("fToken"), cur = st.token;
+  const toks = Array.from(new Set([...data.meta.tokens.filter(t => t.origin === "config").map(t => t.ticker), ...Object.keys(cnt)]));
+  toks.sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0) || a.localeCompare(b));
+  const optsHtml = '<option value="">全部</option>' + toks.map(t => '<option value="' + esc(t) + '">' + esc(t) + " (" + (cnt[t] || 0) + ")</option>").join("");
+  if (sel.dataset.h !== optsHtml){ sel.innerHTML = optsHtml; sel.dataset.h = optsHtml; }
+  sel.value = cur;
+  
+  const nNew = all.filter(it => it.first_seen > lastView).length;
+  $("stats").innerHTML = "显示 <b>" + shown.length + "</b> / 共 <b>" + all.length + "</b>（近 " + data.retain_hours + "h）" +
+    " · 重大 <b style='color:var(--big)'>" + data.stats.big + "</b> · 命中 <b style='color:var(--hit)'>" + data.stats.hit + "</b> · 低分 " + data.stats.low +
+    " · NEW <b style='color:var(--new)'>" + nNew + "</b>" + " · 阈值 " + data.meta.threshold + " / 重大 " + data.meta.big_threshold;
+  document.title = (nNew ? "(" + nNew + ") " : "") + "加密新闻看板";
+  
+  const list = $("list");
+  list.innerHTML = shown.length ? shown.map(card).join("") : '<div class="empty">' + (all.length ? "没有符合筛选条件的条目（试试调低最低分）" : "暂无条目") + "</div>";
+  
+  renderHealth();
+}
+
+// ---------------------------------------------------------------- controls
+function bindControls(){
+  const setSort = s => { st.sort = s; LS.set("sort", s); $("sortTime").classList.toggle("on", s === "time"); $("sortScore").classList.toggle("on", s === "score"); render(); };
+  $("sortTime").onclick = () => setSort("time"); $("sortScore").onclick = () => setSort("score"); setSort(st.sort);
+  $("fToken").onchange = e => { st.token = e.target.value; LS.set("token", st.token); render(); };
+  
+  // 事件类型下拉
+  const ft = $("fType");
+  for (const e of data.meta.events){ const o = document.createElement("option"); o.value = e.key; o.textContent = (e.big ? "★ " : "") + e.label; ft.appendChild(o); }
+  const o2 = document.createElement("option"); o2.value = "none"; o2.textContent = "无事件(仅代币)"; ft.appendChild(o2);
+  ft.value = st.type;
+  ft.onchange = e => { st.type = e.target.value; LS.set("type", st.type); render(); };
+  
+  // 来源下拉
+  const fs = $("fSource");
+  for (const s of data.meta.sources){ if (!s.enabled) continue; const o = document.createElement("option"); o.value = s.key; o.textContent = s.label; fs.appendChild(o); }
+  fs.value = st.source;
+  fs.onchange = e => { st.source = e.target.value; LS.set("source", st.source); render(); };
+  
+  $("fBig").checked = st.big; $("fBig").onchange = e => { st.big = e.target.checked; LS.set("big", st.big); render(); };
+  $("fMin").value = st.min; $("fMinV").textContent = st.min;
+  $("fMin").oninput = e => { st.min = parseFloat(e.target.value); $("fMinV").textContent = st.min; LS.set("min", st.min); render(); };
+  let qT; $("fQ").oninput = e => { clearTimeout(qT); qT = setTimeout(() => { st.q = e.target.value.trim(); render(); }, 200); };
+  $("optNotify").checked = st.notify && "Notification" in window && Notification.permission === "granted";
+  $("optNotify").onchange = async e => {
+    if (e.target.checked){
+      if (!("Notification" in window)){ alert("此浏览器不支持系统通知"); e.target.checked = false; return; }
+      const p = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (p !== "granted"){ alert("通知权限未授予（可在浏览器网站设置中开启）"); e.target.checked = false; }
+    }
+    st.notify = e.target.checked; LS.set("notify", st.notify);
+  };
+  $("optSound").checked = st.sound;
+  $("optSound").onchange = e => { st.sound = e.target.checked; LS.set("sound", st.sound); if (st.sound) beep(); };
+  $("markRead").onclick = () => { lastView = data.updated; LS.set("last_view", lastView); render(); };
+  $("list").addEventListener("click", e => {
+    const s = e.target.closest("[data-sum]"); if (!s) return;
+    const id = s.dataset.sum; if (expanded.has(id)) expanded.delete(id); else expanded.add(id); s.classList.toggle("open");
+  });
+  
+  const saveView = () => { if (data) LS.set("last_view", data.updated); };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveView(); });
+  window.addEventListener("pagehide", saveView);
+}
+
+setInterval(() => { $("clock").textContent = t8(nowS()).slice(6) + ":" + pad(Math.floor(nowS()) % 60) + " UTC+8"; }, 1000);
+
+(async function init(){
+  try{
+    await loadData();
+    bindControls();
+    render();
+    // 每60秒重新加载数据
+    setInterval(async () => {
+      try{ await loadData(); render(); }catch(e){ console.error("重新加载失败:", e); }
+    }, 60000);
+  }catch(e){
+    $("list").innerHTML = '<div class="empty">⚠ 加载失败: ' + esc(e.message) + '</div>';
+  }
+})();
+</script>
+</body>
+</html>
