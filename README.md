@@ -109,10 +109,11 @@ schedule:
    - 按 URL、标题去重
    - 相似标题、共同实体、相同代币+事件 → 合并为一个故事
 5. **获取价格**：从 Binance 或 CoinGecko 获取相关代币价格
-6. **生成静态文件**：
+6. **生成静态文件**（只写到 `gh-pages`，不提交到 `main`）：
    - `data.json`：前端读取的数据
    - `state.json`：保存状态供下次运行使用
-7. **部署到 GitHub Pages**：使用 `gh-pages` 分支
+   - `calendar.json`：日历事件
+7. **部署到 GitHub Pages**：workflow 推到 `gh-pages` 分支；若站点从 `main` 发布，前端会从 `gh-pages` 的 raw 地址取最新数据
 
 ## 📝 评分规则
 

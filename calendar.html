@@ -116,25 +116,30 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&
 const pad = n => String(n).padStart(2, "0");
 
 // ---------------------------------------------------------------- data
+async function tryJson(url){
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 async function loadData(){
   const cacheBust = Math.floor(Date.now() / 30000);
-  const fallbackUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/calendar.json";
-  
-  try {
-    const r = await fetch("./calendar.json?_=" + cacheBust);
-    if (r.ok) {
-      data = await r.json();
-      dataSource = "本地 (gh-pages)";
-      return;
-    }
-  } catch(e) {
-    console.log("本地 calendar.json 不可用，尝试回退源:", e.message);
+  const localUrl = "./calendar.json?_=" + cacheBust;
+  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/calendar.json?_=" + cacheBust;
+
+  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
+  if (!local && !remote) throw new Error("calendar.json 加载失败");
+  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
+    data = remote;
+    dataSource = "GitHub raw (gh-pages 分支)";
+  } else {
+    data = local;
+    dataSource = "本地";
   }
-  
-  const r = await fetch(fallbackUrl + "?_=" + cacheBust);
-  if (!r.ok) throw new Error("HTTP " + r.status + " (回退源)");
-  data = await r.json();
-  dataSource = "GitHub raw (gh-pages 分支)";
 }
 
 function getCategoryLabel(cat){

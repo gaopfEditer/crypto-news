@@ -131,42 +131,38 @@ function fmtPx(p){ if (p == null) return "N/A"; return p >= 100 ? "$" + p.toLoca
 function isZh(s){ return /[\u4e00-\u9fff]/.test(s || ""); }
 
 // ---------------------------------------------------------------- data
-async function loadData(){
-  const cacheBust = Math.floor(Date.now() / 30000); // 30秒缓存
-  const fallbackUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json";
-  
-  // 先尝试本地 data.json（适用于 gh-pages 部署）
+async function tryJson(url){
   try {
-    const r = await fetch("./data.json?_=" + cacheBust);
-    if (r.ok) {
-      data = await r.json();
-      dataSource = "本地 (gh-pages)";
-      if (lastView === null) {
-        lastView = data.updated;
-        LS.set("last_view", lastView);
-      }
-      const fresh = data.stories.filter(it => 
-        it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
-      );
-      if (fresh.length) alertBig(fresh);
-      return;
-    }
-  } catch(e) {
-    console.log("本地 data.json 不可用，尝试回退源:", e.message);
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
   }
-  
-  // 回退到 GitHub raw URL（适用于 main 分支部署）
-  const r = await fetch(fallbackUrl + "?_=" + cacheBust);
-  if (!r.ok) throw new Error("HTTP " + r.status + " (回退源)");
-  data = await r.json();
-  dataSource = "GitHub raw (gh-pages 分支)";
-  
+}
+
+async function loadData(){
+  const cacheBust = Math.floor(Date.now() / 30000);
+  const localUrl = "./data.json?_=" + cacheBust;
+  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json?_=" + cacheBust;
+
+  // 本地与 gh-pages raw 都取，用 updated 更新的那份（同样新时优先 raw）
+  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
+  if (!local && !remote) throw new Error("data.json 加载失败");
+  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
+    data = remote;
+    dataSource = "GitHub raw (gh-pages 分支)";
+  } else {
+    data = local;
+    dataSource = "本地";
+  }
+
   if (lastView === null) {
     lastView = data.updated;
     LS.set("last_view", lastView);
   }
-  
-  const fresh = data.stories.filter(it => 
+
+  const fresh = data.stories.filter(it =>
     it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
   );
   if (fresh.length) alertBig(fresh);

@@ -67,6 +67,7 @@ jobs:
 
       - name: 准备部署
         run: |
+          # 生成物只发布到 gh-pages，不要 git add / commit 回 main
           mkdir -p deploy
           cp data.json deploy/
           cp state.json deploy/
