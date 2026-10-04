@@ -180,6 +180,36 @@ def src_cmc(cache_dir, lo, hi):
     return list(best.values()), {"snapshots": len(files)}
 
 
+def src_cmc_live(cache_dir, lo, hi):
+    sdir = os.path.join(cache_dir, "cmc_snapshots")
+    if not os.path.isdir(sdir):
+        return []
+    files = sorted(os.listdir(sdir))
+    if not files:
+        return []
+    with open(os.path.join(sdir, files[-1]), encoding="utf-8") as f:
+        snap = json.load(f)
+    out = []
+    for x in snap.get("rows") or []:
+        nu = x.get("nextUnlocked") or {}
+        if not nu.get("date"):
+            continue
+        ts = int(nu["date"] // 1000)
+        if not (lo <= ts <= hi):
+            continue
+        amt = nu.get("tokenAmount")
+        det = x.get("nextUnlockedDetail") or []
+        circ = x.get("circulatingSupply")
+        out.append(mk_event(
+            source="CoinMarketCap", kind="CoinMarketCap", symbol=x["symbol"], name=x.get("name"), ts=ts, amount=amt,
+            value_usd_src=nu.get("tokenAmountUsd"), pct_circ=amt / circ * 100 if amt and circ else None,
+            recipients="; ".join(f"{a.get('allocationName')}:{fmt_amt(a.get('tokenAmount'))}" for a in det),
+            unlock_type="/".join(sorted({a.get("vestingType") or "?" for a in det})) or None,
+            ref_price=(nu["tokenAmountUsd"] / amt) if amt and nu.get("tokenAmountUsd") else None,
+            url=f"https://coinmarketcap.com/currencies/{x.get('slug')}/"))
+    return out
+
+
 ZH_RE = re.compile(
     r"(?P<name>[A-Za-z0-9][A-Za-z0-9 .\-&'’]{0,40}?)\s*[（(]\s*(?P<sym>\$?[A-Za-z0-9]{1,15})\s*[）)]\s*将于\s*(?:北京时间)?\s*"
     r"(?P<m>\d{1,2})\s*月\s*(?P<d>\d{1,2})\s*日\s*(?P<ap>凌晨|早上|上午|中午|下午|傍晚|晚上|晚)?\s*"
@@ -484,6 +514,7 @@ def parse_args(argv=None):
     ap.add_argument("--cache", default=os.path.join(BASE, "cache"), help="缓存目录")
     ap.add_argument("--refresh", action="store_true", help="忽略缓存强制重新抓取")
     ap.add_argument("--quiet", action="store_true", help="不在stdout打印markdown摘要")
+    ap.add_argument("--future-days", type=int, default=14, help="写入 future_unlocks.csv 的未来天数(UTC+8)")
     return ap.parse_args(argv)
 
 
@@ -505,7 +536,8 @@ def main(argv=None):
             "args": vars(a), "sources": {}, "errors": [], "unmapped": [], "price_notes": []}
 
     # ---- collect events (look +-48h beyond window so cross-source date conflicts still merge)
-    qlo, qhi = lo - MERGE_TOL, hi + MERGE_TOL
+    future_hi = now_ts + int(getattr(a, "future_days", 14) or 14) * DAY
+    qlo, qhi = lo - MERGE_TOL, max(hi, future_hi) + MERGE_TOL
     events = []
     srcs = [s.strip().lower() for s in a.sources.split(",") if s.strip()]
     if "defillama" in srcs:
@@ -640,6 +672,98 @@ def main(argv=None):
             dr["price_source"] = src
             daily_rows.append(dr)
 
+    # ---- future unlocks (next N days)
+    future_days = int(getattr(a, "future_days", 14) or 14)
+    future_hi = now_ts + future_days * DAY
+    future_pool = []
+    if "defillama" in srcs:
+        try:
+            fev, _ = src_defillama(http, now_ts - MERGE_TOL, future_hi + MERGE_TOL)
+            future_pool += [e for e in fev if now_ts < e["ts"] <= future_hi]
+        except Exception as e:
+            meta["errors"].append(f"DefiLlama future: {e}")
+    if "cmc" in srcs:
+        try:
+            future_pool += src_cmc_live(a.cache, now_ts + 1, future_hi)
+        except Exception as e:
+            meta["errors"].append(f"CMC future: {e}")
+    future_merged = merge_events(future_pool)
+    future_kept = [e for e in future_merged if size_filter(e, a)]
+    future_kept.sort(key=lambda e: -(e.get("filter_value_usd") or 0))
+    future_kept = future_kept[:a.max_tokens]
+    if not bmap:
+        try:
+            bmap = binance_symbols(http)
+        except Exception:
+            pass
+    if not blast:
+        try:
+            syms = {bmap[e["symbol"]] for e in future_kept if e["symbol"] in bmap} | {"BTCUSDT"}
+            blast = binance_last_prices(http, syms)
+        except Exception:
+            blast = {}
+    for e in future_kept:
+        if not e.get("gecko_id"):
+            e["gecko_id"] = cg_search(http, e.get("name"), e["symbol"])
+    cgp2 = cg_simple_prices(http, [e.get("gecko_id") for e in future_kept])
+    for e in future_kept:
+        pair = bmap.get(e["symbol"])
+        ref = cgp2.get(e.get("gecko_id")) or e.get("ref_price")
+        e["price_src"] = None
+        if pair and pair in blast and ref and abs(blast[pair] / ref - 1) <= PRICE_VERIFY_TOL:
+            e["price_src"] = ("binance", pair)
+        elif e.get("gecko_id"):
+            e["price_src"] = ("coingecko", e["gecko_id"])
+    future_rows, future_daily_rows = [], []
+    for e in sorted(future_kept, key=lambda e: e["ts"]):
+        ts = e["ts"]
+        pts, psrc_label = [], NA
+        if e["price_src"]:
+            kind, ident = e["price_src"]
+            try:
+                pts = binance_series(http, ident, now_ts - 7 * DAY - 2 * H, now_ts) if kind == "binance" else cg_series(http, ident, now_ts - 7 * DAY - 2 * H, now_ts)
+                psrc_label = f"Binance {ident} 1h" if kind == "binance" else f"CoinGecko {ident} hourly"
+            except Exception as ex:
+                meta["errors"].append(f"future price {e['symbol']}: {ex}")
+        tm = window_metrics(pts, ts, now_ts) if pts else None
+        bm = window_metrics(btc, ts, now_ts) if btc else None
+        g = (lambda k: tm[k]) if tm else (lambda k: None)
+        p_now = g("p_now") or (pts[-1][1] if pts else None) or (cgp2.get(e.get("gecko_id")) if e.get("gecko_id") else None)
+        val_est = e["amount"] * p_now if e.get("amount") and p_now else e.get("value_usd_src") or e.get("est_value_usd")
+        flags = list(e.get("flags") or [])
+        flags.append("scheduled")
+        days_until = round((ts - now_ts) / DAY, 1)
+        row = {
+            "ticker": e["symbol"], "name": e.get("name"), "unlock_time_utc8": fmt_ts(ts), "unlock_type": e.get("unlock_type"),
+            "amount": e.get("amount"), "value_usd_source": e.get("value_usd_src"), "value_usd_at_unlock": val_est,
+            "pct_circ": e.get("pct_circ"), "recipients": e.get("recipients"),
+            "sources": " | ".join(e.get("sources") or []), "n_sources": len(e.get("kinds") or []),
+            "single_source": "yes" if "single_source" in flags else "no",
+            "flags": "; ".join(flags), "status": "scheduled", "days_until": days_until,
+            "source_times_utc8": " | ".join(f"{x['source']}@{fmt_ts(x['ts'])}" for x in e.get("members") or [e]),
+            "source_amounts": " | ".join(f"{x['source']}={fmt_amt(x.get('amount'))}" for x in e.get("members") or [e]),
+            "source_urls": " | ".join(sorted({x.get("url") for x in (e.get("members") or [e]) if x.get("url")})) or None,
+            "coingecko_id": e.get("gecko_id"), "price_source": psrc_label,
+            "price_7d_before": g("p_7"), "price_at_unlock": None, "price_24h_after": None, "price_now": p_now,
+            "price_now_time_utc8": fmt_ts(tm["t_now"]) if tm and tm.get("t_now") else fmt_ts(now_ts),
+            "pre7d_change_pct": g("pre7"), "post_unlock_change_pct": None, "change_24h_after_pct": None,
+            "post_low_vs_unlock_pct": None, "post_high_vs_unlock_pct": None,
+            "btc_pre7d_change_pct": bm["pre7"] if bm else None, "btc_post_change_pct": None,
+            "relative_vs_btc_post_pp": None, "post_window_hours": None,
+        }
+        future_rows.append(row)
+        for label, mm, src in ((e["symbol"], tm, psrc_label), ("BTC", bm, "Binance BTCUSDT 1h")):
+            dr = {"ticker": e["symbol"], "series": label, "unlock_time_utc8": fmt_ts(ts), "D-7_start_utc8": fmt_ts(ts - 7 * DAY)}
+            tot = 1.0
+            for d in range(7, 0, -1):
+                v = mm["daily"][f"D-{d}"] if mm else None
+                dr[f"D-{d}_pct"] = v
+                tot = tot * (1 + v / 100) if (v is not None and tot is not None) else None
+            dr["total_7d_pct"] = (tot - 1) * 100 if tot is not None else None
+            dr["price_source"] = src
+            future_daily_rows += [dr]
+    meta["counts"]["future_kept"] = len(future_rows)
+
     # ---- write outputs
     def wcsv(path, data):
         if not data:
@@ -651,6 +775,9 @@ def main(argv=None):
             w.writerows([{k: csvv(v) for k, v in r.items()} for r in data])
     wcsv(os.path.join(out_dir, "unlocks.csv"), rows)
     wcsv(os.path.join(out_dir, "pre7d_daily.csv"), daily_rows)
+    wcsv(os.path.join(out_dir, "future_unlocks.csv"), future_rows)
+    if future_daily_rows:
+        wcsv(os.path.join(out_dir, "future_pre7d_daily.csv"), future_daily_rows)
     md = render_md(rows, daily_rows, meta, a)
     with open(os.path.join(out_dir, "summary.md"), "w", encoding="utf-8") as f:
         f.write(md)

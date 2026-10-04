@@ -35,6 +35,8 @@ th{color:var(--dim);background:var(--panel2);text-align:left}
 th.sort{cursor:pointer}th.sort:hover{color:var(--acc)}
 .up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--dim)}
 .badge{font-size:10px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);color:var(--dim);margin:1px 2px 1px 0}
+.badge.soon{color:var(--acc);border-color:#1f3350;background:#121f33}
+tr.future-row td{background:rgba(61,139,253,.05)}
 .sp{flex:1}
 .poll{font-family:Menlo,monospace;color:var(--dim);font-size:11px}
 label.future{font-size:12px;color:var(--dim)}
@@ -61,6 +63,8 @@ label.future{font-size:12px;color:var(--dim)}
       <button data-r="14">近14天</button>
       <button data-r="30">近30天</button>
       <button data-r="all">全部</button>
+      <button data-r="f7">未来7天</button>
+      <button data-r="f14">未来14天</button>
     </span>
     <label>从 <input type="date" id="fromD"></label>
     <label>至 <input type="date" id="toD"></label>
@@ -133,6 +137,17 @@ function fmtUsd(v){ if(v==null) return "N/A"; v=Math.abs(v); if(v>=1e9)return "$
 function fmtAmt(v){ if(v==null) return "N/A"; const a=Math.abs(v);
   if(a>=1e9)return (v/1e9).toFixed(2)+"B"; if(a>=1e6)return (v/1e6).toFixed(2)+"M"; if(a>=1e3)return (v/1e3).toFixed(2)+"K"; return Number(v).toFixed(2); }
 function shortT(s){ return s?String(s).slice(5,16):"—"; }
+function countdown(ts){
+  if(!ts) return "";
+  const s=ts-Date.now()/1000;
+  if(s<=0) return "";
+  if(s<86400) return Math.max(1,Math.round(s/3600))+"小时后";
+  return Math.round(s/86400)+"天后";
+}
+function isFutureEv(e){
+  const now=Date.now()/1000;
+  return !!(e.is_future||(e.event_ts>now&&(e.status==="scheduled"||!e.status)));
+}
 
 async function tryJson(u){ try{ const r=await fetch(u); if(!r.ok)return null; return await r.json(); }catch(e){return null;} }
 async function loadLib(type){
@@ -177,9 +192,17 @@ function rangeTs(){
 
 function filteredEvents(type){
   const lib=libs[type]; if(!lib) return [];
-  const {lo,hi,now}=rangeTs();
+  const now=Date.now()/1000;
+  if(rangeMode==="f7"||rangeMode==="f14"){
+    const days=rangeMode==="f7"?7:14;
+    return (lib.events||[]).filter(e=>{
+      const ts=e.event_ts; if(!ts||e.status==="cancelled") return false;
+      return ts>now && ts<=now+days*86400;
+    });
+  }
+  const {lo,hi}=rangeTs();
   return (lib.events||[]).filter(e=>{
-    const ts=e.event_ts; if(!ts) return false;
+    const ts=e.event_ts; if(!ts||e.status==="cancelled") return false;
     if(ts>now&&!showFuture) return false;
     if(ts>hi&&showFuture) return true;
     return ts>=lo && ts<=hi;
@@ -239,7 +262,12 @@ function renderCell(e,col){
   if(col.t==="pp") return fmtPp(v);
   if(col.t==="usd") return fmtUsd(v);
   if(col.t==="amt") return fmtAmt(v);
-  if(col.t==="time") return esc(shortT(v));
+  if(col.t==="time") {
+    const v=cellVal(e,col);
+    const cd=isFutureEv(e)?countdown(e.event_ts):"";
+    const soon=cd?` <span class="badge soon">即将·${esc(cd)}</span>`:"";
+    return esc(shortT(v))+soon;
+  }
   if(col.t==="link") return v?`<a href="${esc(v)}" target="_blank" rel="noopener">链接</a>`:"—";
   if(col.t==="flags") return v?String(v).split(";").map(x=>`<span class="badge">${esc(x.trim().split("(")[0])}</span>`).join(""):"";
   return esc(v);
@@ -261,7 +289,7 @@ function renderMain(){
   }).join("")+"</tr>";
   thead.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>applySortKey(th.dataset.k));
   const tb=$("tblMain").querySelector("tbody");
-  tb.innerHTML=rows.map(e=>"<tr>"+cfg.cols.map(c=>{
+  tb.innerHTML=rows.map(e=>"<tr class=\""+(isFutureEv(e)?"future-row":"")+"\">"+cfg.cols.map(c=>{
     const sym=fld(e,cfg.sym);
     if(c.k===cfg.sym) return `<td><b>${esc(sym||fld(e,"ticker"))}</b></td>`;
     return `<td class="${c.t==="pct"||c.t==="pp"||c.t==="usd"||c.t==="amt"?"num":""}">${renderCell(e,c)}</td>`;
@@ -283,7 +311,7 @@ function renderDaily(){
     const d=(e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT"&&(r.series===sym||r.ticker===sym))
       || (e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT");
     if(!d) return "";
-    return `<tr><td><b>${esc(sym)}</b></td><td>${esc(shortT(fld(e,cfg.time)))}</td>`+
+    return `<tr class="${isFutureEv(e)?"future-row":""}"><td><b>${esc(sym)}</b></td><td>${esc(shortT(fld(e,cfg.time)))}${isFutureEv(e)?` <span class="badge soon">${esc(countdown(e.event_ts))}</span>`:""}</td>`+
       [7,6,5,4,3,2,1].map(k=>`<td class="num">${fmtPct(d["D-"+k+"_pct"])}</td>`).join("")+
       `<td class="num">${fmtPct(d.total_7d_pct,2)}</td></tr>`;
   }).join("");

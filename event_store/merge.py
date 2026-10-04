@@ -68,8 +68,20 @@ def merge_run(etype, out_dir, events_dir, now_ts=None):
     lib = load_lib(path, etype)
     before_total = len(lib["events"])
     incoming = ingest_tracker_dir(etype, out_dir, now_ts)
-    stats = merge_libraries(lib, incoming, now_ts)
+    sys.path.insert(0, HERE)
+    from future_ingest import collect_future  # noqa: E402
+    future = collect_future(etype, out_dir, now_ts)
+    seen_scheduled = {e["id"] for e in future}
+    have = {e["id"] for e in incoming}
+    for ev in future:
+        if ev["id"] not in have:
+            incoming.append(ev)
+    merge_libraries(lib, incoming, now_ts)
+    from store import reconcile_future, refresh_event_times  # noqa: E402
+    reconcile_future(lib, seen_scheduled, now_ts, 14)
+    refresh_event_times(lib, now_ts)
     save_lib(path, lib)
+    stats = {"added": len(lib["events"]) - before_total}
     lo = now_ts - 7 * 86400
     recent_before = window_count(lib, lo, now_ts, now_ts=now_ts)
     print(json.dumps({

@@ -185,11 +185,13 @@ def row_to_event(etype, fields, pre7d_rows, now_ts, cfg):
     if ts is None:
         return None
     eid = event_id(etype, fields, cfg)
+    st = fields.get("status") or ("scheduled" if ts > now_ts else "occurred")
     return {
         "id": eid,
         "event_ts": ts,
         "event_time_utc8": fields.get(cfg["time_field"]),
-        "is_future": ts > now_ts,
+        "is_future": ts > now_ts and st not in ("cancelled", "occurred"),
+        "status": st,
         "frozen": (now_ts - ts) > FREEZE_AFTER if ts <= now_ts else False,
         "last_updated_ts": now_ts,
         "fields": fields,
@@ -204,7 +206,14 @@ def merge_event(old, new, now_ts):
         old["frozen"] = True
         return old
     out = {**old, "last_updated_ts": now_ts, "frozen": False}
+    st = new.get("status") or new.get("fields", {}).get("status")
+    if st:
+        out["status"] = st
+    if ts and ts <= now_ts and out.get("status") == "scheduled":
+        out["status"] = "occurred"
     out["is_future"] = ts > now_ts if ts else new.get("is_future")
+    if out.get("status") == "cancelled":
+        out["is_future"] = False
     nf, of = new.get("fields") or {}, old.get("fields") or {}
     merged = dict(of)
     for k, v in nf.items():
@@ -229,7 +238,39 @@ def merge_libraries(existing, incoming, now_ts):
             by_id[inc["id"]] = inc
     existing["events"] = sorted(by_id.values(), key=lambda e: e.get("event_ts") or 0)
     existing["updated"] = now_ts
-    return {"before": before, "after": len(by_id), "added": len(by_id) - before}
+    return {"before": before, "after": len(by_id), "added": len(by_id) - before, "seen_ids": set(by_id.keys())}
+
+
+def refresh_event_times(lib, now_ts):
+    for e in lib.get("events", []):
+        ts = e.get("event_ts")
+        if not ts:
+            continue
+        st = e.get("status") or e.get("fields", {}).get("status") or "occurred"
+        if ts <= now_ts and st == "scheduled":
+            st = "occurred"
+            e["status"] = st
+            e["fields"]["status"] = st
+        e["is_future"] = ts > now_ts and st not in ("cancelled",)
+
+
+def reconcile_future(lib, seen_scheduled_ids, now_ts, horizon_days=14):
+    """Mark scheduled future events missing from latest run as cancelled."""
+    hi = now_ts + horizon_days * DAY
+    for e in lib.get("events", []):
+        ts = e.get("event_ts")
+        if not ts or ts <= now_ts or ts > hi:
+            continue
+        if e.get("status") != "scheduled":
+            continue
+        if e["id"] in seen_scheduled_ids:
+            continue
+        e["status"] = "cancelled"
+        e["is_future"] = False
+        e["fields"]["status"] = "cancelled"
+        fl = e["fields"].get("flags") or ""
+        if "cancelled" not in fl:
+            e["fields"]["flags"] = (fl + "; cancelled").strip("; ")
 
 
 def normalize_fields(etype, row):
