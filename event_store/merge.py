@@ -45,7 +45,7 @@ def bootstrap(events_dir, fixtures_dir, legacy_unlocks_dir=None):
         files = sorted(set(files))
         for fp in files:
             inc = ingest_main_csv(etype, fp, now_ts)
-            merge_libraries(lib, inc, now_ts)
+            merge_libraries(lib, inc, now_ts, etype)
         save_lib(path, lib)
         print(f"bootstrap {etype}: {len(lib['events'])} events", file=sys.stderr)
     if legacy_unlocks_dir and os.path.isdir(legacy_unlocks_dir):
@@ -55,7 +55,7 @@ def bootstrap(events_dir, fixtures_dir, legacy_unlocks_dir=None):
             if os.path.basename(fp) == "index.json":
                 continue
             inc = migrate_unlock_snapshot(fp, now_ts)
-            merge_libraries(lib, inc, now_ts)
+            merge_libraries(lib, inc, now_ts, etype)
         save_lib(path, lib)
         print(f"migrated unlock snapshots: {len(lib['events'])} total", file=sys.stderr)
     rebuild_index(events_dir)
@@ -69,16 +69,21 @@ def merge_run(etype, out_dir, events_dir, now_ts=None):
     before_total = len(lib["events"])
     incoming = ingest_tracker_dir(etype, out_dir, now_ts)
     sys.path.insert(0, HERE)
-    from future_ingest import collect_future  # noqa: E402
+    from future_ingest import collect_future, collect_side_effects  # noqa: E402
     future = collect_future(etype, out_dir, now_ts)
-    seen_scheduled = {e["id"] for e in future}
+    side = collect_side_effects(etype, out_dir, now_ts)
+    seen_scheduled = {e["id"] for e in future if e.get("status") == "scheduled"}
     have = {e["id"] for e in incoming}
-    for ev in future:
+    for ev in future + side:
         if ev["id"] not in have:
             incoming.append(ev)
-    merge_libraries(lib, incoming, now_ts)
+    merge_libraries(lib, incoming, now_ts, etype)
+    from run_health import parse_run_meta, update_source_health  # noqa: E402
+    run_info = parse_run_meta(etype, out_dir)
+    run_info["errors"] = run_info.get("errors") or (run_info.get("meta") or {}).get("errors") or []
+    update_source_health(lib, etype, future, run_info, now_ts)
     from store import reconcile_future, refresh_event_times  # noqa: E402
-    reconcile_future(lib, seen_scheduled, now_ts, 14)
+    reconcile_future(lib, seen_scheduled, now_ts, 14, lib.get("source_health"))
     refresh_event_times(lib, now_ts)
     save_lib(path, lib)
     stats = {"added": len(lib["events"]) - before_total}

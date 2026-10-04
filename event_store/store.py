@@ -132,6 +132,26 @@ def norm_source(s):
     return s[:80]
 
 
+def infer_data_source(etype, fields, cfg):
+    from run_health import norm_source_key  # noqa: WPS433 — same package
+
+    if etype == "unlock":
+        blob = " ".join(
+            str(fields.get(k) or "")
+            for k in ("sources", "unlock_source", cfg["source_field"])
+        ).lower()
+        if "defillama" in blob:
+            return "defillama"
+        if "coinmarketcap" in blob or re.search(r"\bcmc\b", blob):
+            return "cmc"
+        if "news" in blob:
+            return "news"
+        if "extra" in blob:
+            return "extra"
+    raw = fields.get(cfg["source_field"]) or fields.get(cfg.get("fallback_source"))
+    return norm_source_key(raw)
+
+
 def event_id(etype, fields, cfg):
     sym = (fields.get(cfg["ticker_field"]) or "").upper()
     ts = ts_from_utc8(fields.get(cfg["time_field"]))
@@ -186,12 +206,16 @@ def row_to_event(etype, fields, pre7d_rows, now_ts, cfg):
         return None
     eid = event_id(etype, fields, cfg)
     st = fields.get("status") or ("scheduled" if ts > now_ts else "occurred")
+    ds = infer_data_source(etype, fields, cfg)
     return {
         "id": eid,
         "event_ts": ts,
         "event_time_utc8": fields.get(cfg["time_field"]),
         "is_future": ts > now_ts and st not in ("cancelled", "occurred"),
         "status": st,
+        "data_source": ds,
+        "last_seen_ts": now_ts if st == "scheduled" and ts > now_ts else None,
+        "absence_streak": 0,
         "frozen": (now_ts - ts) > FREEZE_AFTER if ts <= now_ts else False,
         "last_updated_ts": now_ts,
         "fields": fields,
@@ -206,14 +230,34 @@ def merge_event(old, new, now_ts):
         old["frozen"] = True
         return old
     out = {**old, "last_updated_ts": now_ts, "frozen": False}
-    st = new.get("status") or new.get("fields", {}).get("status")
-    if st:
-        out["status"] = st
+    new_st = new.get("status") or new.get("fields", {}).get("status")
+    old_st = old.get("status") or "occurred"
+    new_ts = new.get("event_ts") or ts
+    if new_ts:
+        out["event_ts"] = new_ts
+        out["event_time_utc8"] = new.get("event_time_utc8") or out.get("event_time_utc8")
+    if new.get("data_source"):
+        out["data_source"] = new["data_source"]
+    # Re-appear after cancel → restore scheduled
+    if new_st == "scheduled" and old_st == "cancelled":
+        out["status"] = "scheduled"
+        out["absence_streak"] = 0
+        out["last_seen_ts"] = now_ts
+    elif new_st == "cancelled":
+        out["status"] = "cancelled"
+    elif new_st:
+        out["status"] = new_st
+    ts = out.get("event_ts") or ts
     if ts and ts <= now_ts and out.get("status") == "scheduled":
         out["status"] = "occurred"
     out["is_future"] = ts > now_ts if ts else new.get("is_future")
     if out.get("status") == "cancelled":
         out["is_future"] = False
+    elif out.get("status") == "scheduled" and ts and ts > now_ts:
+        out["is_future"] = True
+        if new_st == "scheduled":
+            out["last_seen_ts"] = now_ts
+            out["absence_streak"] = 0
     nf, of = new.get("fields") or {}, old.get("fields") or {}
     merged = dict(of)
     for k, v in nf.items():
@@ -228,7 +272,15 @@ def merge_event(old, new, now_ts):
     return out
 
 
-def merge_libraries(existing, incoming, now_ts):
+def ensure_event_data_source(etype, e):
+    if e.get("data_source"):
+        return
+    cfg = TYPE_CONFIG[etype]
+    e["data_source"] = infer_data_source(etype, e.get("fields") or {}, cfg)
+
+
+def merge_libraries(existing, incoming, now_ts, etype=None):
+    etype = etype or existing.get("type")
     by_id = {e["id"]: e for e in existing.get("events", [])}
     before = len(by_id)
     for inc in incoming:
@@ -236,6 +288,9 @@ def merge_libraries(existing, incoming, now_ts):
             by_id[inc["id"]] = merge_event(by_id[inc["id"]], inc, now_ts)
         else:
             by_id[inc["id"]] = inc
+    if etype:
+        for e in by_id.values():
+            ensure_event_data_source(etype, e)
     existing["events"] = sorted(by_id.values(), key=lambda e: e.get("event_ts") or 0)
     existing["updated"] = now_ts
     return {"before": before, "after": len(by_id), "added": len(by_id) - before, "seen_ids": set(by_id.keys())}
@@ -254,23 +309,50 @@ def refresh_event_times(lib, now_ts):
         e["is_future"] = ts > now_ts and st not in ("cancelled",)
 
 
-def reconcile_future(lib, seen_scheduled_ids, now_ts, horizon_days=14):
-    """Mark scheduled future events missing from latest run as cancelled."""
+def _mark_cancelled(e, now_ts, reason="cancelled"):
+    e["status"] = "cancelled"
+    e["is_future"] = False
+    e.setdefault("fields", {})["status"] = "cancelled"
+    fl = e["fields"].get("flags") or ""
+    if reason not in fl:
+        e["fields"]["flags"] = (fl + "; " + reason).strip("; ")
+    e["last_updated_ts"] = now_ts
+
+
+def _source_run_ok(health, src):
+    return bool((health.get(src) or {}).get("last_run_ok"))
+
+
+def _source_stable(health, src):
+    h = health.get(src) or {}
+    return bool(h.get("last_run_ok")) and int(h.get("consecutive_ok") or 0) >= 2
+
+
+def reconcile_future(lib, seen_scheduled_ids, now_ts, horizon_days=14, source_health=None):
+    """Conservative reconcile: cancel only after 2 healthy source runs without the event."""
     hi = now_ts + horizon_days * DAY
+    health = source_health or lib.get("source_health") or {}
+    etype = lib.get("type")
     for e in lib.get("events", []):
+        if etype:
+            ensure_event_data_source(etype, e)
         ts = e.get("event_ts")
         if not ts or ts <= now_ts or ts > hi:
             continue
         if e.get("status") != "scheduled":
             continue
-        if e["id"] in seen_scheduled_ids:
+        eid = e["id"]
+        if eid in seen_scheduled_ids:
+            e["last_seen_ts"] = now_ts
+            e["absence_streak"] = 0
             continue
-        e["status"] = "cancelled"
-        e["is_future"] = False
-        e["fields"]["status"] = "cancelled"
-        fl = e["fields"].get("flags") or ""
-        if "cancelled" not in fl:
-            e["fields"]["flags"] = (fl + "; cancelled").strip("; ")
+        src = e.get("data_source") or "unknown"
+        if not _source_run_ok(health, src):
+            continue
+        streak = int(e.get("absence_streak") or 0) + 1
+        e["absence_streak"] = streak
+        if streak >= 2 and _source_stable(health, src):
+            _mark_cancelled(e, now_ts, "absence_reconcile")
 
 
 def normalize_fields(etype, row):
