@@ -1,0 +1,129 @@
+name: 更新事件库
+
+on:
+  schedule:
+    - cron: '50 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: events-data
+  cancel-in-progress: false
+
+jobs:
+  events:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出 main
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 拉取 gh-pages
+        working-directory: repo
+        run: |
+          mkdir -p publish/events
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            git archive origin/gh-pages | tar -x -C publish
+            mkdir -p publish/events
+          else
+            touch publish/.nojekyll
+          fi
+
+      - name: 恢复各 tracker 缓存
+        working-directory: repo
+        run: python3 event_store/cache_util.py restore ../publish
+
+      - name: 解锁
+        id: unlock
+        continue-on-error: true
+        working-directory: repo
+        run: |
+          set +e
+          OUT=unlock_tracker/output/latest
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          if python3 unlock_tracker/unlock_tracker.py --quiet --out "$OUT" --cache unlock_tracker/cache; then
+            python3 event_store/merge.py merge unlock "$OUT" ../publish/events
+            echo "ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning title=unlock_tracker 失败::脚本退出非 0，未合并本类（历史库保留）"
+            echo "ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 下架
+        id: delist
+        continue-on-error: true
+        working-directory: repo
+        run: |
+          OUT=delist_tracker/output/latest
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          if python3 delist_tracker/delist_tracker.py --quiet --out "$OUT" --cache delist_tracker/cache; then
+            python3 event_store/merge.py merge delist "$OUT" ../publish/events
+            echo "ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning title=delist_tracker 失败::可能被 Bybit/Gate 403 或公告解析失败"
+            echo "ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 永续上新
+        id: perp
+        continue-on-error: true
+        working-directory: repo
+        run: |
+          OUT=futures_listing_tracker/output/latest
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          if python3 futures_listing_tracker/futures_listing_tracker.py --quiet --out "$OUT" --cache futures_listing_tracker/cache; then
+            python3 event_store/merge.py merge perp_listing "$OUT" ../publish/events
+            echo "ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning title=futures_listing_tracker 失败::OKX 公告/Bybit 页面可能不可用"
+            echo "ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 销毁
+        id: burn
+        continue-on-error: true
+        working-directory: repo
+        run: |
+          OUT=burn_tracker/output/latest
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          if python3 burn_tracker/burn_tracker.py --quiet --out "$OUT" --cache burn_tracker/cache; then
+            python3 event_store/merge.py merge burn "$OUT" ../publish/events
+            echo "ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning title=burn_tracker 失败::快讯/API 限流或解析失败"
+            echo "ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 写回缓存与页面
+        working-directory: repo
+        run: |
+          python3 event_store/cache_util.py publish ../publish --keep-days 30
+          python3 -c "import sys; sys.path.insert(0,'event_store'); from store import rebuild_index; rebuild_index('../publish/events')"
+          cp events.html unlocks.html publish/
+          cp index.html calendar.html publish/
+
+      - name: 部署 gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo/publish
+          publish_branch: gh-pages
+          force_orphan: false
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '更新事件库'
+
+      - name: 摘要
+        working-directory: repo
+        run: |
+          echo "### 事件库更新" >> $GITHUB_STEP_SUMMARY
+          echo "unlock: ${{ steps.unlock.outputs.ok }} | delist: ${{ steps.delist.outputs.ok }} | perp: ${{ steps.perp.outputs.ok }} | burn: ${{ steps.burn.outputs.ok }}" >> $GITHUB_STEP_SUMMARY

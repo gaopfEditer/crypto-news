@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>事件追踪 - 加密新闻看板</title>
+<style>
+:root{--bg:#0b0e11;--panel:#12161c;--panel2:#181d25;--line:#232a35;--txt:#d6dde6;--dim:#7d8896;--mute:#59626e;--up:#0ecb81;--down:#f6465d;--warn:#f0b90b;--acc:#3d8bfd}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC",Menlo,monospace}
+a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:6;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px}
+.brand{font-weight:700;color:var(--warn);font-family:Menlo,monospace}
+.nav a{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px}
+.nav a.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.tabs{display:flex;flex-wrap:wrap;gap:4px}
+.tab{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);cursor:pointer;font-size:12px}
+.tab.on{border-color:var(--acc);background:#1f3350;color:#fff}
+.tab .n{color:var(--warn);margin-left:4px;font-family:Menlo,monospace}
+.seg{display:inline-flex}.seg button{border-radius:0;padding:4px 8px;font-size:12px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);cursor:pointer}
+.seg button:first-child{border-radius:4px 0 0 4px}.seg button:last-child{border-radius:0 4px 4px 0;margin-left:-1px}
+.seg button.on{background:#1f3350;border-color:var(--acc)}
+input[type=date]{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:12px}
+.stats,.filters{padding:6px 14px;border-bottom:1px solid var(--line);color:var(--dim);font-size:12px;display:flex;flex-wrap:wrap;gap:12px}
+.stats b{color:var(--txt)}
+.wrap{padding:12px 14px 60px;max-width:1400px}
+.obs{padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);margin-bottom:10px;color:#9aa5b3}
+.section{font-size:15px;font-weight:600;margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);background:var(--panel2);text-align:left}
+.num{text-align:right;font-family:Menlo,monospace}
+th.sort{cursor:pointer}th.sort:hover{color:var(--acc)}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--dim)}
+.badge{font-size:10px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);color:var(--dim);margin:1px 2px 1px 0}
+.sp{flex:1}
+.poll{font-family:Menlo,monospace;color:var(--dim);font-size:11px}
+label.future{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <span class="brand">◆ CRYPTO NEWS WATCH</span>
+    <div class="nav">
+      <a href="index.html">新闻</a>
+      <a href="calendar.html">日历</a>
+      <a href="events.html" class="active">事件追踪</a>
+    </div>
+    <span class="sp"></span>
+    <span class="poll" id="poll">加载中…</span>
+  </div>
+  <div class="bar">
+    <div class="tabs" id="typeTabs"></div>
+  </div>
+  <div class="filters bar">
+    <span class="seg" id="rangeSeg">
+      <button data-r="7" class="on">近7天</button>
+      <button data-r="14">近14天</button>
+      <button data-r="30">近30天</button>
+      <button data-r="all">全部</button>
+    </span>
+    <label>从 <input type="date" id="fromD"></label>
+    <label>至 <input type="date" id="toD"></label>
+    <label class="future"><input type="checkbox" id="showFuture"> 含未来/未生效</label>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+<div class="wrap">
+  <div class="obs" id="obs" style="display:none"></div>
+  <div class="section" id="t1title">事件与价格表现</div>
+  <div class="table-wrap"><table id="tblMain"><thead></thead><tbody></tbody></table></div>
+  <div class="section">事件前 7 天逐日涨跌（D-7 … D-1）</div>
+  <div class="table-wrap"><table id="tblDaily"><thead></thead><tbody></tbody></table></div>
+</div>
+<script>
+"use strict";
+const RAW = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages";
+const TYPES = {
+  unlock: { label: "解锁", file: "unlock.json", sym: "ticker", time: "unlock_time_utc8",
+    cols: [
+      {k:"ticker",l:"代币",t:"s"},{k:"unlock_time_utc8",l:"时间",t:"time"},
+      {k:"unlock_amount",l:"数量",t:"amt",alt:"amount"},{k:"computed_value_usd",l:"价值",t:"usd",alt:"value_usd_at_unlock"},
+      {k:"pct_circ",l:"占流通",t:"pct"},{k:"pre7d_change_pct",l:"前7天",t:"pct"},
+      {k:"post_unlock_change_pct",l:"事件后",t:"pct"},{k:"btc_post_change_pct",l:"BTC",t:"pct"},
+      {k:"relative_vs_btc_post_pp",l:"相对BTC",t:"pp",sort:1},{k:"unlock_source",l:"来源",t:"s",alt:"sources"},{k:"flags",l:"标记",t:"flags"}
+    ]},
+  delist: { label: "下架", file: "delist.json", sym: "ticker", time: "delist_utc8",
+    cols: [
+      {k:"ticker",l:"代币",t:"s"},{k:"exchange",l:"交易所",t:"s"},{k:"delist_utc8",l:"下架时间",t:"time"},
+      {k:"mcap_usd_at_delist_cg",l:"市值",t:"usd"},{k:"pre7d_change_pct",l:"前7天",t:"pct"},
+      {k:"post_delist_change_pct",l:"事件后",t:"pct"},{k:"btc_post_change_pct",l:"BTC",t:"pct"},
+      {k:"relative_vs_btc_post_pp",l:"相对BTC",t:"pp",sort:1},{k:"source_url",l:"来源",t:"link"}
+    ]},
+  perp_listing: { label: "上合约", file: "perp_listing.json", sym: "token", time: "launch_utc8",
+    cols: [
+      {k:"token",l:"代币",t:"s"},{k:"exchange",l:"交易所",t:"s"},{k:"role",l:"角色",t:"s"},
+      {k:"launch_utc8",l:"上线",t:"time"},{k:"max_leverage",l:"杠杆",t:"s"},
+      {k:"pre7d_pct",l:"前7天",t:"pct"},{k:"post_pct",l:"事件后",t:"pct"},{k:"btc_post_pct",l:"BTC",t:"pct"},
+      {k:"_rel",l:"相对BTC",t:"pp",sort:1},{k:"source_url",l:"来源",t:"link"}
+    ]},
+  burn: { label: "销毁", file: "burn.json", sym: "token", time: "burn_utc8",
+    cols: [
+      {k:"token",l:"代币",t:"s"},{k:"type",l:"类型",t:"s"},{k:"burn_utc8",l:"时间",t:"time"},
+      {k:"amount",l:"数量",t:"amt"},{k:"usd_value",l:"价值",t:"usd"},
+      {k:"pre7d_pct",l:"前7天",t:"pct"},{k:"post_pct",l:"事件后",t:"pct"},{k:"btc_post_pct",l:"BTC",t:"pct"},
+      {k:"_rel",l:"相对BTC",t:"pp",sort:1},{k:"source_url",l:"来源",t:"link"}
+    ]}
+};
+
+let libs = {}, curType = "unlock", sortKey = "_rel", sortDir = -1;
+let rangeMode = "7", customFrom = null, customTo = null, showFuture = false;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fld(e,k,alt){ const f=e.fields||{}; return f[k]!=null?f[k]:(alt?f[alt]:null); }
+function relBtc(e){
+  const f=e.fields||{};
+  if(f.relative_vs_btc_post_pp!=null) return f.relative_vs_btc_post_pp;
+  const p=f.post_pct!=null?f.post_pct:f.post_unlock_change_pct!=null?f.post_unlock_change_pct:f.post_delist_change_pct;
+  const b=f.btc_post_pct!=null?f.btc_post_pct:f.btc_post_change_pct;
+  return (p!=null&&b!=null)?p-b:null;
+}
+function fmtPct(v,d){ if(v==null||isNaN(v)) return '<span class="flat">N/A</span>'; const c=v>0.05?"up":v<-0.05?"down":"flat";
+  return `<span class="${c}">${v>=0?"+":""}${Number(v).toFixed(d==null?1:d)}%</span>`; }
+function fmtPp(v){ if(v==null) return '<span class="flat">N/A</span>'; const c=v>0.05?"up":v<-0.05?"down":"flat";
+  return `<span class="${c}">${v>=0?"+":""}${Number(v).toFixed(1)}pp</span>`; }
+function fmtUsd(v){ if(v==null) return "N/A"; v=Math.abs(v); if(v>=1e9)return "$"+(v/1e9).toFixed(2)+"B";
+  if(v>=1e6)return "$"+(v/1e6).toFixed(2)+"M"; if(v>=1e3)return "$"+(v/1e3).toFixed(2)+"K"; return "$"+v.toFixed(2); }
+function fmtAmt(v){ if(v==null) return "N/A"; const a=Math.abs(v);
+  if(a>=1e9)return (v/1e9).toFixed(2)+"B"; if(a>=1e6)return (v/1e6).toFixed(2)+"M"; if(a>=1e3)return (v/1e3).toFixed(2)+"K"; return Number(v).toFixed(2); }
+function shortT(s){ return s?String(s).slice(5,16):"—"; }
+
+async function tryJson(u){ try{ const r=await fetch(u); if(!r.ok)return null; return await r.json(); }catch(e){return null;} }
+async function loadLib(type){
+  const bust=Math.floor(Date.now()/30000);
+  const path="events/"+TYPES[type].file;
+  const [loc,rem]=await Promise.all([tryJson("./"+path+"?_="+bust), tryJson(RAW+"/"+path+"?_="+bust)]);
+  if(!loc&&!rem) return null;
+  const d=(rem&&(!loc||(rem.updated||0)>=(loc.updated||0)))?rem:loc;
+  return d;
+}
+
+function parseParams(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("type")&&TYPES[q.get("type")]) curType=q.get("type");
+  if(q.get("from")){ customFrom=q.get("from"); $("fromD").value=customFrom; rangeMode="custom"; }
+  if(q.get("to")){ customTo=q.get("to"); $("toD").value=customTo; rangeMode="custom"; }
+  if(q.get("range")) rangeMode=q.get("range");
+  showFuture=q.get("future")==="1"; $("showFuture").checked=showFuture;
+}
+
+function syncUrl(){
+  const p=new URLSearchParams();
+  p.set("type",curType);
+  if(rangeMode!=="7") p.set("range",rangeMode);
+  if($("fromD").value) p.set("from",$("fromD").value);
+  if($("toD").value) p.set("to",$("toD").value);
+  if(showFuture) p.set("future","1");
+  history.replaceState(null,"", "?"+p.toString());
+}
+
+function rangeTs(){
+  const now=Date.now()/1000;
+  if($("fromD").value||$("toD").value){
+    const lo=$("fromD").value?new Date($("fromD").value+"T00:00:00+08:00").getTime()/1000:0;
+    const hi=$("toD").value?new Date($("toD").value+"T23:59:59+08:00").getTime()/1000:now+86400*365;
+    return {lo,hi,now};
+  }
+  if(rangeMode==="all") return {lo:0, hi:now+86400*365, now};
+  const days=rangeMode==="14"?14:rangeMode==="30"?30:7;
+  return {lo: now-days*86400, hi: now, now};
+}
+
+function filteredEvents(type){
+  const lib=libs[type]; if(!lib) return [];
+  const {lo,hi,now}=rangeTs();
+  return (lib.events||[]).filter(e=>{
+    const ts=e.event_ts; if(!ts) return false;
+    if(ts>now&&!showFuture) return false;
+    if(ts>hi&&showFuture) return true;
+    return ts>=lo && ts<=hi;
+  });
+}
+
+function renderTabs(){
+  $("typeTabs").innerHTML=Object.keys(TYPES).map(t=>{
+    const n=filteredEvents(t).length;
+    return `<span class="tab ${t===curType?"on":""}" data-t="${t}">${TYPES[t].label}<span class="n">${n}</span></span>`;
+  }).join("");
+  document.querySelectorAll(".tab").forEach(el=>el.onclick=()=>{ curType=el.dataset.t; sortKey=TYPES[curType].cols.find(c=>c.sort)?.k||"_rel"; renderAll(); syncUrl(); });
+}
+
+function cellVal(e,col){
+  if(col.k==="_rel") return relBtc(e);
+  return fld(e,col.k,col.alt);
+}
+function renderCell(e,col){
+  const v=cellVal(e,col);
+  if(col.t==="pct") return fmtPct(v);
+  if(col.t==="pp") return fmtPp(v);
+  if(col.t==="usd") return fmtUsd(v);
+  if(col.t==="amt") return fmtAmt(v);
+  if(col.t==="time") return esc(shortT(v));
+  if(col.t==="link") return v?`<a href="${esc(v)}" target="_blank" rel="noopener">链接</a>`:"—";
+  if(col.t==="flags") return v?String(v).split(";").map(x=>`<span class="badge">${esc(x.trim().split("(")[0])}</span>`).join(""):"";
+  return esc(v);
+}
+
+function renderMain(){
+  const cfg=TYPES[curType];
+  let rows=filteredEvents(curType).slice();
+  if(sortKey){
+    rows.sort((a,b)=>{
+      const av=sortKey==="_rel"?relBtc(a):cellVal(a,cfg.cols.find(c=>c.k===sortKey)||{k:sortKey});
+      const bv=sortKey==="_rel"?relBtc(b):cellVal(b,cfg.cols.find(c=>c.k===sortKey)||{k:sortKey});
+      if(av==null&&bv==null)return 0; if(av==null)return 1; if(bv==null)return -1;
+      return sortDir*(av-bv);
+    });
+  }
+  const thead=$("tblMain").querySelector("thead");
+  thead.innerHTML="<tr>"+cfg.cols.map(c=>`<th class="${c.sort?"sort num":""}" data-k="${c.k}">${c.l}${c.sort?" ▼":""}</th>`).join("")+"</tr>";
+  thead.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; sortDir=(sortKey===k)?-sortDir:-1; sortKey=k; renderMain();
+  });
+  const tb=$("tblMain").querySelector("tbody");
+  tb.innerHTML=rows.map(e=>"<tr>"+cfg.cols.map(c=>{
+    const sym=fld(e,cfg.sym);
+    if(c.k===cfg.sym) return `<td><b>${esc(sym||fld(e,"ticker"))}</b></td>`;
+    return `<td class="${c.t==="pct"||c.t==="pp"||c.t==="usd"||c.t==="amt"?"num":""}">${renderCell(e,c)}</td>`;
+  }).join("")+"</tr>").join("");
+}
+
+function renderDaily(){
+  const cfg=TYPES[curType];
+  const ids=new Set(filteredEvents(curType).map(e=>e.id));
+  const thead=$("tblDaily").querySelector("thead");
+  thead.innerHTML="<tr><th>代币</th><th>时间</th>"+[7,6,5,4,3,2,1].map(d=>`<th class="num">D-${d}</th>`).join("")+'<th class="num">合计</th></tr>';
+  const tb=$("tblDaily").querySelector("tbody");
+  const lines=[];
+  filteredEvents(curType).forEach(e=>{
+    (e.pre7d_daily||[]).filter(d=>d.series!=="BTC"&&d.series!=="BTCUSDT").forEach(d=>{
+      lines.push({sym:fld(e,cfg.sym), t:shortT(fld(e,cfg.time)), d});
+    });
+  });
+  tb.innerHTML=lines.map(x=>`<tr><td><b>${esc(x.sym)}</b></td><td>${esc(x.t)}</td>`+
+    [7,6,5,4,3,2,1].map(k=>`<td class="num">${fmtPct(x.d["D-"+k+"_pct"])}</td>`).join("")+
+    `<td class="num">${fmtPct(x.d.total_7d_pct,2)}</td></tr>`).join("");
+}
+
+function renderObs(){
+  const rows=filteredEvents(curType).filter(e=>(e.event_ts||0)<=Date.now()/1000);
+  const scored=rows.map(e=>({sym:fld(e,TYPES[curType].sym), pp:relBtc(e)})).filter(x=>x.pp!=null);
+  scored.sort((a,b)=>a.pp-b.pp);
+  const weak=scored.slice(0,3);
+  const strong=scored.slice(-3).reverse();
+  const parts=[];
+  if(weak.length) parts.push("相对BTC偏弱："+weak.map(x=>`${x.sym}(${x.pp>=0?"+":""}${x.pp.toFixed(1)}pp)`).join("、"));
+  if(strong.length) parts.push("相对BTC偏强："+strong.map(x=>`${x.sym}(${x.pp>=0?"+":""}${x.pp.toFixed(1)}pp)`).join("、"));
+  const el=$("obs");
+  if(!parts.length){ el.style.display="none"; return; }
+  el.style.display="block"; el.textContent=parts.join("；");
+}
+
+function renderStats(){
+  const lib=libs[curType];
+  const all=(lib&&lib.events)?lib.events.length:0;
+  const n=filteredEvents(curType).length;
+  $("stats").innerHTML=`<span>筛选 <b>${n}</b> 条</span><span>库内合计 <b>${all}</b> 条</span><span>类型 <b>${TYPES[curType].label}</b></span>`;
+}
+
+function renderAll(){
+  renderTabs(); renderStats(); renderObs(); renderMain(); renderDaily(); syncUrl();
+}
+
+async function init(){
+  parseParams();
+  document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#rangeSeg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); rangeMode=b.dataset.r; customFrom=customTo=null; $("fromD").value=""; $("toD").value=""; renderAll();
+  });
+  $("fromD").onchange=$("toD").onchange=()=>{ rangeMode="custom"; renderAll(); };
+  $("showFuture").onchange=()=>{ showFuture=$("showFuture").checked; renderAll(); };
+  for(const t of Object.keys(TYPES)) libs[t]=await loadLib(t);
+  $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
+  sortKey=TYPES[curType].cols.find(c=>c.sort)?.k||"_rel";
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
