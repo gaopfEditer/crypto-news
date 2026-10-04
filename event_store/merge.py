@@ -98,6 +98,7 @@ def merge_run(etype, out_dir, events_dir, now_ts=None):
         "library_total": len(lib["events"]),
         "added": stats["added"],
         "recent_7d": recent_before,
+        **({"unlock_postprocess": lib.get("unlock_postprocess"), "updated": lib.get("updated")} if etype == "unlock" else {}),
     }))
     if incoming and len(incoming) < before_total * 0.2 and before_total > 5:
         print(

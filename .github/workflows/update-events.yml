@@ -40,37 +40,34 @@ jobs:
 
       - name: 恢复各 tracker 缓存
         working-directory: repo
-        run: python3 event_store/cache_util.py restore ../publish
+        run: python3 event_store/cache_util.py restore publish
 
       - name: 解锁
         id: unlock
-        continue-on-error: true
         working-directory: repo
         run: |
-          set +e
+          set -euo pipefail
           OUT=unlock_tracker/output/latest
           rm -rf "$OUT" && mkdir -p "$OUT"
-          if python3 unlock_tracker/unlock_tracker.py --quiet --out "$OUT" --cache unlock_tracker/cache; then
-            python3 event_store/merge.py merge unlock "$OUT" ../publish/events
-            echo "ok=true" >> $GITHUB_OUTPUT
-          else
-            echo "::warning title=unlock_tracker 失败::脚本退出非 0，未合并本类（历史库保留）"
-            echo "ok=false" >> $GITHUB_OUTPUT
-          fi
+          python3 unlock_tracker/unlock_tracker.py --quiet --out "$OUT" --cache unlock_tracker/cache
+          python3 event_store/merge.py merge unlock "$OUT" publish/events
+          python3 event_store/verify_unlock_lib.py publish/events/unlock.json
+          echo "ok=true" >> "$GITHUB_OUTPUT"
 
       - name: 下架
         id: delist
         continue-on-error: true
         working-directory: repo
         run: |
+          set +e
           OUT=delist_tracker/output/latest
           rm -rf "$OUT" && mkdir -p "$OUT"
           if python3 delist_tracker/delist_tracker.py --quiet --out "$OUT" --cache delist_tracker/cache; then
-            python3 event_store/merge.py merge delist "$OUT" ../publish/events
-            echo "ok=true" >> $GITHUB_OUTPUT
+            python3 event_store/merge.py merge delist "$OUT" publish/events
+            echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning title=delist_tracker 失败::可能被 Bybit/Gate 403 或公告解析失败"
-            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 永续上新
@@ -78,14 +75,14 @@ jobs:
         continue-on-error: true
         working-directory: repo
         run: |
+          set +e
           OUT=futures_listing_tracker/output/latest
           rm -rf "$OUT" && mkdir -p "$OUT"
           if python3 futures_listing_tracker/futures_listing_tracker.py --quiet --out "$OUT" --cache futures_listing_tracker/cache; then
-            python3 event_store/merge.py merge perp_listing "$OUT" ../publish/events
-            echo "ok=true" >> $GITHUB_OUTPUT
+            python3 event_store/merge.py merge perp_listing "$OUT" publish/events
+            echo "ok=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning title=futures_listing_tracker 失败::OKX 公告/Bybit 页面可能不可用"
-            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 销毁
@@ -93,23 +90,25 @@ jobs:
         continue-on-error: true
         working-directory: repo
         run: |
+          set +e
           OUT=burn_tracker/output/latest
           rm -rf "$OUT" && mkdir -p "$OUT"
           if python3 burn_tracker/burn_tracker.py --quiet --out "$OUT" --cache burn_tracker/cache; then
-            python3 event_store/merge.py merge burn "$OUT" ../publish/events
-            echo "ok=true" >> $GITHUB_OUTPUT
+            python3 event_store/merge.py merge burn "$OUT" publish/events
+            echo "ok=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning title=burn_tracker 失败::快讯/API 限流或解析失败"
-            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 写回缓存与页面
         working-directory: repo
         run: |
-          python3 event_store/cache_util.py publish ../publish --keep-days 30
-          python3 -c "import sys; sys.path.insert(0,'event_store'); from store import rebuild_index; rebuild_index('../publish/events')"
+          set -euo pipefail
+          python3 event_store/cache_util.py publish publish --keep-days 30
+          python3 -c "import sys; sys.path.insert(0,'event_store'); from store import rebuild_index; rebuild_index('publish/events')"
           cp events.html unlocks.html publish/
           cp index.html calendar.html publish/
+          python3 event_store/verify_unlock_lib.py publish/events/unlock.json
 
       - name: 部署 gh-pages
         uses: peaceiris/actions-gh-pages@v3
@@ -122,8 +121,17 @@ jobs:
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: '更新事件库'
 
+      - name: 校验 unlock 步骤
+        if: always()
+        run: |
+          if [ "${{ steps.unlock.outputs.ok }}" != "true" ]; then
+            echo "::error::unlock 步骤失败或未写入 publish/events/unlock.json（见上方日志）"
+            exit 1
+          fi
+
       - name: 摘要
+        if: success()
         working-directory: repo
         run: |
-          echo "### 事件库更新" >> $GITHUB_STEP_SUMMARY
-          echo "unlock: ${{ steps.unlock.outputs.ok }} | delist: ${{ steps.delist.outputs.ok }} | perp: ${{ steps.perp.outputs.ok }} | burn: ${{ steps.burn.outputs.ok }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 事件库更新" >> "$GITHUB_STEP_SUMMARY"
+          echo "unlock: ${{ steps.unlock.outputs.ok }} | delist: ${{ steps.delist.outputs.ok }} | perp: ${{ steps.perp.outputs.ok }} | burn: ${{ steps.burn.outputs.ok }}" >> "$GITHUB_STEP_SUMMARY"

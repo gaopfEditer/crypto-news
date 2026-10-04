@@ -9,6 +9,8 @@
 | **程序/API（稳定）** | `https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/events/unlock.json` |
 | **GitHub Pages 站点** | `https://gaopfEditer.github.io/crypto-news/events/unlock.json` |
 
+Workflow 在 `repo/` 下合并到 **`publish/events/`**（与 `peaceiris/actions-gh-pages` 的 `publish_dir: ./repo/publish` 一致）。勿使用 `../publish`，否则会写到仓库外、部署仍用旧 gh-pages 快照。
+
 `events.html` 会同时请求相对路径 `./events/unlock.json` 与 raw；取 `updated` 较新的一份。若 Pages 相对路径偶发 404（缓存或首次部署），raw 仍可用。
 
 ## 解锁库后处理
