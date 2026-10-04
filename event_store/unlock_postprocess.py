@@ -347,6 +347,12 @@ def _merge_cluster_members(cluster, now_ts):
     return merged, alias_ids
 
 
+def _same_date_utc8(ts):
+    import datetime as dt
+    TZ8 = dt.timezone(dt.timedelta(hours=8))
+    return dt.datetime.fromtimestamp(ts, TZ8).strftime("%Y-%m-%d")
+
+
 def dedupe_unlock_library(events, now_ts):
     active = [e for e in events if not e.get("merged_into")]
     by_ticker = {}
@@ -357,13 +363,14 @@ def dedupe_unlock_library(events, now_ts):
         by_ticker.setdefault(t, []).append(e)
 
     canonical = {}
-    for _ticker, evs in by_ticker.items():
+
+    def _cluster_and_merge(evs, tol_seconds):
         evs = sorted(evs, key=lambda x: x.get("event_ts") or 0)
         clusters = []
         for e in evs:
             placed = False
             for c in clusters:
-                if any(abs(e["event_ts"] - x["event_ts"]) <= DEDUP_TOL for x in c):
+                if any(abs(e["event_ts"] - x["event_ts"]) <= tol_seconds for x in c):
                     c.append(e)
                     placed = True
                     break
@@ -372,12 +379,28 @@ def dedupe_unlock_library(events, now_ts):
         for c in clusters:
             if len(c) < 2:
                 continue
-            merged, alias_ids = _merge_cluster_members(c, now_ts)
+            merged, _alias = _merge_cluster_members(c, now_ts)
             canonical[merged["id"]] = merged
             for e in c:
                 if e["id"] != merged["id"]:
                     e["merged_into"] = merged["id"]
                 e["last_updated_ts"] = now_ts
+
+    for _ticker, evs in by_ticker.items():
+        _cluster_and_merge(evs, DEDUP_TOL)
+        # Same calendar day (UTC+8) + amount within 5% → one unlock (multi-source time skew)
+        by_day = {}
+        for e in evs:
+            if e.get("merged_into"):
+                continue
+            ts = e.get("event_ts")
+            if not ts:
+                continue
+            by_day.setdefault(_same_date_utc8(ts), []).append(e)
+        for day_evs in by_day.values():
+            if len(day_evs) < 2:
+                continue
+            _cluster_and_merge(day_evs, 86400)
 
     if not canonical:
         return events

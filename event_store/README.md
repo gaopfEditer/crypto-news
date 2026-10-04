@@ -17,7 +17,7 @@
 
 1. 合并 `event_store/unlock_manual.json`（`data_source=manual`）
 2. 应用 `overrides`（如 ENA 数量更正）
-3. 同一 ticker、解锁时刻 **±1 小时** 去重：保留 canonical 行，`merged_into` 指向 canonical（旧 id 不删）
+3. 同一 ticker、解锁时刻 **±1 小时** 去重；**同一 UTC+8 日历日**的多源重复也会合并（保留 `amount_conflict`）
 4. 冲突标记、`pct_circ_basis`、**impact_score**
 
 ### `impact_score`（0–100）
