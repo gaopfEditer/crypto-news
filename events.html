@@ -141,12 +141,56 @@ function fmtUsd(v){ if(v==null) return "N/A"; v=Math.abs(v); if(v>=1e9)return "$
 function fmtAmt(v){ if(v==null) return "N/A"; const a=Math.abs(v);
   if(a>=1e9)return (v/1e9).toFixed(2)+"B"; if(a>=1e6)return (v/1e6).toFixed(2)+"M"; if(a>=1e3)return (v/1e3).toFixed(2)+"K"; return Number(v).toFixed(2); }
 function shortT(s){ return s?String(s).slice(5,16):"—"; }
+
+const TZ8_FMT = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+function ymdUtc8(msOrSec){
+  const ms = typeof msOrSec === "number" && msOrSec < 1e12 ? msOrSec * 1000 : msOrSec;
+  return TZ8_FMT.format(new Date(ms));
+}
+function todayYmdUtc8(){ return ymdUtc8(Date.now()); }
+function tsDayStart(ymd){ return new Date(ymd + "T00:00:00+08:00").getTime() / 1000; }
+function tsDayEnd(ymd){ return new Date(ymd + "T23:59:59+08:00").getTime() / 1000; }
+function ymdAdd(ymd, deltaDays){
+  const t = new Date(ymd + "T12:00:00+08:00").getTime() + deltaDays * 86400000;
+  return ymdUtc8(t);
+}
+function isTodayTs(ts){ return ts && ymdUtc8(ts) === todayYmdUtc8(); }
+
+/** UTC+8 自然日闭区间 {lo, hi}（秒） */
+function calendarRange(mode){
+  const today = todayYmdUtc8();
+  if(mode==="f7" || mode==="f14"){
+    const n = mode==="f7" ? 7 : 14;
+    const loDay = ymdAdd(today, 1);
+    const hiDay = ymdAdd(today, n);
+    return { lo: tsDayStart(loDay), hi: tsDayEnd(hiDay) };
+  }
+  if(mode==="all"){
+    return { lo: 0, hi: tsDayEnd(ymdAdd(today, 365)) };
+  }
+  if(mode==="custom" || $("fromD").value || $("toD").value){
+    const loDay = $("fromD").value || "1970-01-01";
+    const hiDay = $("toD").value || today;
+    return { lo: tsDayStart(loDay), hi: tsDayEnd(hiDay) };
+  }
+  const span = mode==="14" ? 14 : mode==="30" ? 30 : 7;
+  const loDay = ymdAdd(today, -(span - 1));
+  return { lo: tsDayStart(loDay), hi: tsDayEnd(today) };
+}
+
 function countdown(ts){
-  if(!ts) return "";
+  if(!ts || isTodayTs(ts)) return "";
   const s=ts-Date.now()/1000;
   if(s<=0) return "";
   if(s<86400) return Math.max(1,Math.round(s/3600))+"小时后";
   return Math.round(s/86400)+"天后";
+}
+function timeBadges(e){
+  const ts = e.event_ts;
+  if(!ts) return "";
+  if(isTodayTs(ts)) return ' <span class="badge soon">今天</span>';
+  const cd = isFutureEv(e) ? countdown(ts) : "";
+  return cd ? ` <span class="badge soon">即将·${esc(cd)}</span>` : "";
 }
 function isFutureEv(e){
   const now=Date.now()/1000;
@@ -185,15 +229,7 @@ function syncUrl(){
 }
 
 function rangeTs(){
-  const now=Date.now()/1000;
-  if($("fromD").value||$("toD").value){
-    const lo=$("fromD").value?new Date($("fromD").value+"T00:00:00+08:00").getTime()/1000:0;
-    const hi=$("toD").value?new Date($("toD").value+"T23:59:59+08:00").getTime()/1000:now+86400*365;
-    return {lo,hi,now};
-  }
-  if(rangeMode==="all") return {lo:0, hi:now+86400*365, now};
-  const days=rangeMode==="14"?14:rangeMode==="30"?30:7;
-  return {lo: now-days*86400, hi: now, now};
+  return calendarRange(rangeMode === "custom" || $("fromD").value || $("toD").value ? "custom" : rangeMode);
 }
 
 function passCancelled(e){
@@ -204,20 +240,14 @@ function passCancelled(e){
 
 function filteredEvents(type){
   const lib=libs[type]; if(!lib) return [];
-  const now=Date.now()/1000;
-  if(rangeMode==="f7"||rangeMode==="f14"){
-    const days=rangeMode==="f7"?7:14;
-    return (lib.events||[]).filter(e=>{
-      const ts=e.event_ts; if(!ts||!passCancelled(e)) return false;
-      return ts>now && ts<=now+days*86400;
-    });
-  }
-  const {lo,hi}=rangeTs();
+  const isFutureRange = rangeMode==="f7" || rangeMode==="f14";
+  const {lo, hi} = calendarRange(isFutureRange ? rangeMode : (rangeMode==="custom" || $("fromD").value || $("toD").value ? "custom" : rangeMode));
   return (lib.events||[]).filter(e=>{
     const ts=e.event_ts; if(!ts||!passCancelled(e)) return false;
-    if(ts>now&&!showFuture) return false;
-    if(ts>hi&&showFuture) return true;
-    return ts>=lo && ts<=hi;
+    if(isFutureRange) return ts >= lo && ts <= hi;
+    if(ts >= lo && ts <= hi) return true;
+    if(showFuture && ts > hi) return rangeMode==="all";
+    return false;
   });
 }
 
@@ -289,9 +319,7 @@ function renderCell(e,col){
   if(col.t==="amt") return fmtAmt(v);
   if(col.t==="time") {
     const v=cellVal(e,col);
-    const cd=isFutureEv(e)?countdown(e.event_ts):"";
-    const soon=cd?` <span class="badge soon">即将·${esc(cd)}</span>`:"";
-    return esc(shortT(v))+soon;
+    return esc(shortT(v))+timeBadges(e);
   }
   if(col.t==="link") return v?`<a href="${esc(v)}" target="_blank" rel="noopener">链接</a>`:"—";
   if(col.t==="flags") {
@@ -344,7 +372,7 @@ function renderDaily(){
     const d=(e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT"&&(r.series===sym||r.ticker===sym))
       || (e.pre7d_daily||[]).find(r=>r.series!=="BTC"&&r.series!=="BTCUSDT");
     if(!d) return "";
-    return `<tr class="${e.status==="cancelled"?"cancelled-row":isFutureEv(e)?"future-row":""}"><td><b>${esc(sym)}</b></td><td>${esc(shortT(fld(e,cfg.time)))}${isFutureEv(e)?` <span class="badge soon">${esc(countdown(e.event_ts))}</span>`:""}</td>`+
+    return `<tr class="${e.status==="cancelled"?"cancelled-row":isFutureEv(e)?"future-row":""}"><td><b>${esc(sym)}</b></td><td>${esc(shortT(fld(e,cfg.time)))}${timeBadges(e)}</td>`+
       [7,6,5,4,3,2,1].map(k=>`<td class="num">${fmtPct(d["D-"+k+"_pct"])}</td>`).join("")+
       `<td class="num">${fmtPct(d.total_7d_pct,2)}</td></tr>`;
   }).join("");
