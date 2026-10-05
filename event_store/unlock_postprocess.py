@@ -185,9 +185,10 @@ def _detect_conflicts(fields):
 
 def recipient_weight(recipients):
     s = (recipients or "").lower()
-    high = ("team", "investor", "invest", "private", "vc", "founder", "core", "insider", "creator")
-    mid = ("ecosystem", "community", "mining", "airdrop", "contributor")
-    low = ("treasury", "reserve", "foundation", "protocol")
+    high = ("team", "investor", "invest", "private", "vc", "founder", "core", "insider", "creator",
+            "团队", "投资人", "投资者", "早期", "私募", "创始", "核心", "内部", "顾问")
+    mid = ("ecosystem", "community", "mining", "airdrop", "contributor", "生态", "社区", "挖矿", "空投", "贡献者")
+    low = ("treasury", "reserve", "foundation", "protocol", "国库", "储备", "基金会", "协议")
     if any(k in s for k in high):
         return 1.0
     if any(k in s for k in mid):
@@ -247,6 +248,80 @@ def _load_manual():
         return json.load(f)
 
 
+def _num(v):
+    try:
+        x = float(str(v).replace(",", "")) if v is not None and v != "" else None
+    except (TypeError, ValueError):
+        return None
+    return x if x is not None and math.isfinite(x) else None
+
+
+def _market_price(f, status=None):
+    """Pipeline price for value_usd_at_unlock: price_at_unlock once occurred, else price_now (same as unlock_tracker)."""
+    st = (status or f.get("status") or "").lower()
+    p_u, p_now = _num(f.get("price_at_unlock")), _num(f.get("price_now"))
+    if st != "scheduled" and p_u:
+        return p_u
+    return p_now or p_u
+
+
+def _snapshot_source_amount(f, new_amt):
+    """Before an amount override, remember the source amount/values the USD fields were computed from.
+
+    - current amount != override amount → fields are fresh from the tracker → (re)snapshot.
+    - current amount == override amount and no snapshot (legacy rows patched before this fix) → infer the
+      source amount from source_amounts (entry matching `sources`) when the stale USD value implies a price
+      consistent with that amount but not with the override amount.
+    """
+    cur = _num(f.get("amount"))
+    if cur and new_amt and abs(cur - new_amt) / new_amt > 1e-6:
+        f["amount_source"] = cur
+        f["value_usd_source_original"] = f.get("value_usd_source")
+        f["value_usd_at_unlock_original"] = f.get("value_usd_at_unlock")
+        return
+    if _num(f.get("amount_source")):
+        return
+    vsrc = _num(f.get("value_usd_source")) or _num(f.get("value_usd_at_unlock"))
+    px = _market_price(f)
+    if not (vsrc and px and new_amt):
+        return
+    srcs = (f.get("sources") or "").lower()
+    amap = _parse_source_amounts(f.get("source_amounts"))
+    cands = [v for k, v in amap.items() if "pct" not in k.lower() and k.split("/")[0].strip().lower() in srcs and v > 0]
+    for a in cands:
+        if abs(a - new_amt) / new_amt > AMOUNT_CONFLICT_RATIO - 1 and 0.5 <= (vsrc / a) / px <= 2.0:
+            f["amount_source"] = a
+            f["value_usd_source_original"] = f.get("value_usd_source")
+            f["value_usd_at_unlock_original"] = f.get("value_usd_at_unlock")
+            return
+
+
+def recompute_usd_values(f, status=None):
+    """After an amount override, recompute USD fields as amount × price (only for overridden rows).
+
+    value_usd_source   = amount × source unit price (value_usd_source_original / amount_source)
+    value_usd_at_unlock = amount × pipeline price (price_at_unlock once occurred, else price_now);
+                          falls back to the original value's unit price when no price is known.
+    """
+    amt = _num(f.get("amount"))
+    base = _num(f.get("amount_source"))
+    if not (amt and base) or abs(base - amt) / amt <= 1e-6:
+        return
+    f["amount_overridden"] = True
+    v0 = _num(f.get("value_usd_source_original"))
+    if v0:
+        f["value_usd_source"] = round(v0 / base * amt, 2)
+    px = _market_price(f, status)
+    if px:
+        f["value_usd_at_unlock"] = round(amt * px, 2)
+        f["value_usd_basis"] = "amount_x_price"
+    else:
+        v1 = _num(f.get("value_usd_at_unlock_original"))
+        if v1:
+            f["value_usd_at_unlock"] = round(v1 / base * amt, 2)
+            f["value_usd_basis"] = "amount_x_source_unit_price"
+
+
 def _apply_overrides(events, overrides, now_ts):
     from store import TYPE_CONFIG, row_to_event, ts_from_utc8  # noqa: WPS433
 
@@ -265,6 +340,8 @@ def _apply_overrides(events, overrides, now_ts):
             tstr = f.get("unlock_time_utc8") or e.get("event_time_utc8") or ""
             if prefix and not str(tstr).startswith(prefix):
                 continue
+            if "amount" in patch:
+                _snapshot_source_amount(f, _num(patch["amount"]))
             for k, v in patch.items():
                 if k == "flags":
                     f["flags"] = _join_flags([f.get("flags"), v])
@@ -430,6 +507,7 @@ def enrich_unlock_event(e, now_ts):
     normalize_unlock_fields(e)
     e["_now_ts"] = now_ts
     f = e["fields"]
+    recompute_usd_values(f, e.get("status"))
     _sanitize_pct(f)
     _detect_conflicts(f)
     if f.get("pct_circ") is None and f.get("amount"):

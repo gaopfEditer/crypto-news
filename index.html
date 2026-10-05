@@ -56,6 +56,9 @@ input[type=range]{width:140px;accent-color:var(--warn)}
 .px{font-family:Menlo,monospace;font-size:12px;display:flex;gap:12px;flex-wrap:wrap;margin-top:3px}
 .up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--dim)}
 .why{color:var(--mute);font-size:12px;margin-top:3px}
+.b.dir-up{color:#fff;background:#13804f;border-color:#13804f;font-weight:700}.b.dir-down{color:#fff;background:#b3263a;border-color:#b3263a;font-weight:700}.b.dir-flat{color:#c9d4e2;background:#2a3140}
+.b.coin{color:#ffd479;border-color:#5a4a12;font-family:Menlo,monospace}
+.impact{font-size:13px;margin-top:4px;color:#c9d4e2}.impact .up{font-weight:700}.impact .down{font-weight:700}
 .sum{color:#9aa5b3;font-size:12px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 .sum.open{display:block}
 .empty{color:var(--dim);padding:40px;text-align:center}
@@ -276,6 +279,10 @@ function card(it){
   let h = '<div class="' + cls + '" data-id="' + esc(it.id) + '"><div class="hdr">';
   if (it.level === "big") h += '<span class="b big">重大</span>';
   h += '<span class="b ev' + (evBig ? " isbig" : "") + '">' + esc(it.event_label || (it.tokens.length ? "关注代币" : "其他")) + "</span>";
+  const dcls = {"利好":"dir-up","利空":"dir-down"}[it.direction] || "dir-flat";
+  if (it.impact) h += '<span class="b ' + dcls + '" title="' + esc(it.direction_reason || "") + '">' + esc(it.direction || "中性") + "</span>";
+  if (it.impact_label) h += '<span class="b ev isbig" title="流动性/供给事件">' + esc(it.impact_label) + "</span>";
+  for (const c of (it.coins || []).filter(c => !(it.tokens || []).includes(c)).slice(0, 4)) h += '<span class="b coin">$' + esc(c) + "</span>";
   if (it.level === "low") h += '<span class="b low">低分</span>';
   if (isNew) h += '<span class="b new">NEW</span>';
   if (it.multi) h += '<span class="b multi" title="' + esc(it.sources.join(" / ")) + '">多源确认 ×' + it.sources.length + "</span>";
@@ -302,6 +309,10 @@ function card(it){
       h += '<span title="检测时价格（' + esc(p.src) + "，" + t8(p.at) + ' UTC+8）">' + esc(t) + " " + fmtPx(p.price) + ' <span class="' + c + '">1h ' + (p.chg1h == null ? "N/A" : (p.chg1h > 0 ? "+" : "") + p.chg1h.toFixed(2) + "%") + '</span> <span style="color:var(--mute)">' + esc(p.src) + " @" + t8(p.at, false) + "</span></span>";
     }
     h += "</div>";
+  }
+  if (it.impact_tag){
+    const dc = {"利好":"up","利空":"down"}[it.direction] || "flat";
+    h += '<div class="impact"><span class="' + dc + '">' + esc(it.impact_tag) + "</span>" + (it.direction_reason ? " · " + esc(it.direction_reason) : "") + "</div>";
   }
   if (it.reasons && it.reasons.length) h += '<div class="why">原因：' + esc(it.reasons.join("；")) + "</div>";
   if (it.summary) h += '<div class="sum' + (expanded.has(it.id) ? " open" : "") + '" data-sum="' + esc(it.id) + '">' + esc(it.summary) + "</div>";

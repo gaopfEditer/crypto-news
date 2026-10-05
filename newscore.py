@@ -6,6 +6,8 @@ import concurrent.futures as cf, csv, datetime as dt, email.utils, glob, gzip, h
 import urllib.error, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 
+import impact as _impact
+
 TZ8 = dt.timezone(dt.timedelta(hours=8))
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -255,18 +257,25 @@ def score(it, toks, ev, nz, cfg):
     if re.search(r"breaking", tags, re.I):
         noise_pts += cfg.get("breaking_tag_bonus", 1)
         reasons.append("Breaking标签+%s" % cfg.get("breaking_tag_bonus", 1))
-    s = tok_pts + ev_pts + noise_pts
-    big = bool(evs) and bool(evs[0][0].get("big")) and evs[0][2] == "标题"
+    # 流动性/供给类事件优先（impact.py）：加分 + 方向 + 影响币种
+    imp = _impact.classify(title, summ, tokens, sf)
+    imp_pts = imp["boost"] if cfg.get("impact_priority", True) else 0.0
+    if imp_pts:
+        reasons.append("流动性事件 %s(%s)+%g" % (imp["impact_label"], imp["where"], imp_pts))
+    s = tok_pts + ev_pts + noise_pts + imp_pts
+    big = (bool(evs) and bool(evs[0][0].get("big")) and evs[0][2] == "标题") or (bool(imp_pts) and imp["big_ok"])
     it.update(score=round(s, 2), tokens=tokens, event=evs[0][0]["key"] if evs else None, event_label=evs[0][0]["label"] if evs else None,
               events=[e["key"] for e, _, _ in evs], big=big, reasons=reasons, tok_in_title=[t for t in tokens if t in th],
-              sig=sorted(sig(title)), ents=sorted(entities(title, cfg)))
+              sig=sorted(sig(title)), ents=sorted(entities(title, cfg)),
+              coins=imp["coins"], direction=imp["direction"], direction_reason=imp["direction_reason"],
+              impact=imp["impact"], impact_label=imp["impact_label"], impact_tag=imp["impact_tag"])
     return it
 
 
 def is_hit(it, cfg):
     if it["big"] and it["score"] >= cfg["big_threshold"]:
         return True
-    return bool(it["tokens"]) and it["score"] >= cfg["threshold"]
+    return bool(it["tokens"] or (it.get("impact") and it.get("coins"))) and it["score"] >= cfg["threshold"]
 
 
 # ---------------------------------------------------------------- dedupe / cluster

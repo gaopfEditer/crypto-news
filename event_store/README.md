@@ -18,7 +18,7 @@ Workflow 在 `repo/` 下合并到 **`publish/events/`**（与 `peaceiris/actions
 `merge unlock` 结束后运行 `unlock_postprocess.py`：
 
 1. 合并 `event_store/unlock_manual.json`（`data_source=manual`）
-2. 应用 `overrides`（如 ENA 数量更正）
+2. 应用 `overrides`（如 ENA 数量更正）；**覆盖 `amount` 时自动重算美元价值**：先记下源数量 `amount_source` 与原值 `value_usd_*_original`，再按 `value_usd_source = 新数量 × 源单价`、`value_usd_at_unlock = 新数量 × 管线价格`（已发生用 `price_at_unlock`，未来用 `price_now`；无价格时按源单价）重算，并标 `amount_overridden=true`、`value_usd_basis`
 3. 同一 ticker、解锁时刻 **±1 小时** 去重；**同一 UTC+8 日历日**的多源重复也会合并（保留 `amount_conflict`）
 4. 冲突标记、`pct_circ_basis`、**impact_score**
 
@@ -35,7 +35,7 @@ base = 0
 → round，clamp 0–100
 ```
 
-**recipient_weight**：团队/投资人/私募/Insider ≈ 1.0；生态/社区/挖矿 ≈ 0.72；国库/储备 ≈ 0.45；未知 ≈ 0.62  
+**recipient_weight**（中英文关键词均识别）：团队/投资人/私募/Insider ≈ 1.0；生态/社区/挖矿 ≈ 0.72；国库/储备 ≈ 0.45；未知 ≈ 0.62  
 
 **unlock_type_weight**：含 `cliff` ≈ 1.0；含 `linear` ≈ 0.68；其他 ≈ 0.78  
 

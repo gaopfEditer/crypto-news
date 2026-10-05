@@ -13,7 +13,9 @@ import newscore as nc
 # 公开字段（输出到前端的 data.json）
 PUBLIC = ("id", "first_seen", "updated", "ts", "title", "alt_title", "url", "source", "label", 
           "summary", "score", "level", "big", "event", "event_label", "events", "tokens", 
-          "tok_in_title", "reasons", "sources", "multi", "prices", "seeded", "level_at", "big_at")
+          "tok_in_title", "reasons", "sources", "multi", "prices", "seeded", "level_at", "big_at",
+          # 新增（向后兼容）：影响币种 / 方向 / 流动性事件类别
+          "coins", "direction", "direction_reason", "impact", "impact_label", "impact_tag")
 
 MEMBER_PUBLIC = ("source", "label", "url", "title", "ts", "score")
 
@@ -65,10 +67,16 @@ def recompute_story(s, members, cfg, now):
     score = round(lead["score"] + bonus, 2)
     
     big = any(m["big"] for m in members)
+    # 影响币种 / 方向：取主条目；主条目无流动性事件时取最高分的有事件成员
+    imp_src = lead if lead.get("impact") else next((m for m in sorted(members, key=lambda m: -m["score"]) if m.get("impact")), lead)
+    coins = list(dict.fromkeys(list(imp_src.get("coins") or []) + [t for m in members for t in (m.get("coins") or [])] + toks))[:6]
+    impact_tag = imp_src.get("impact_tag")
+    if impact_tag and coins and "$" not in impact_tag and imp_src.get("impact") not in ("macro",):
+        impact_tag = impact_tag.replace("】", "】" + " ".join("$" + c for c in coins[:3]) + " ", 1)
     # 等级必须基于最终分数重新计算
     if big and score >= cfg["big_threshold"]:
         level = "big"
-    elif toks and score >= cfg["threshold"]:
+    elif (toks or (imp_src.get("impact") and coins)) and score >= cfg["threshold"]:
         level = "hit"
     else:
         level = "low"
@@ -99,7 +107,13 @@ def recompute_story(s, members, cfg, now):
         multi=is_multi_source,
         alt_title=alt,
         ts=display_ts,
-        members=members
+        members=members,
+        coins=coins,
+        direction=imp_src.get("direction") or "中性",
+        direction_reason=imp_src.get("direction_reason") or "",
+        impact=imp_src.get("impact"),
+        impact_label=imp_src.get("impact_label"),
+        impact_tag=impact_tag,
     )
     
     rank = {"low": 0, "hit": 1, "big": 2}
@@ -126,7 +140,8 @@ def make_member(it):
     """从条目创建成员记录"""
     return {k: it.get(k) for k in ("id", "source", "label", "url", "title", "ts", "summary", 
                                     "score", "big", "event", "event_label", "events", "tokens", 
-                                    "tok_in_title", "reasons", "sig", "ents")}
+                                    "tok_in_title", "reasons", "sig", "ents",
+                                    "coins", "direction", "direction_reason", "impact", "impact_label", "impact_tag")}
 
 
 def fetch_source(key, sc, ss):
@@ -327,7 +342,8 @@ def main():
             "big": item["big"],
             "reasons": item["reasons"],
             "sig": item["sig"],
-            "ents": item["ents"]
+            "ents": item["ents"],
+            **{k: item.get(k) for k in ("coins", "direction", "direction_reason", "impact", "impact_label", "impact_tag")}
         })
     
     # 4. 清空stories，从零开始重新聚类
@@ -446,6 +462,7 @@ def main():
                 {"key": e["key"], "label": e["label"], "big": bool(e.get("big"))} 
                 for e in cfg["events"]
             ],
+            "impact_categories": nc._impact.META,
             "sources": [
                 {"key": k, "label": v.get("label", k), "enabled": bool(v.get("enabled"))} 
                 for k, v in cfg["sources"].items()
