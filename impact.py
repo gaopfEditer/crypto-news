@@ -43,14 +43,15 @@ CATEGORIES = [
          dir_rules=[(r"(?:净流出|流出|outflows?)", "利空", "ETF资金净流出"), (r"(?:净流入|流入|inflows?)", "利好", "ETF资金净流入，增量买盘")],
          en=[r"ETFs?\b.{0,40}\b(?:inflows?|outflows?|flows)", r"(?:inflows?|outflows?)\b.{0,40}\bETFs?"], zh=[r"ETF.{0,20}(?:净流入|净流出|流入|流出)"]),
     dict(key="etf_expected", label="ETF申请/预期", boost=2, big=False, dir="利好", reason="ETF申请或预期获批，尚未落地",
-         en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:expected|expect(?:s|ed|ation)?|before\s+\d{4}|by\s+\d{4}|fil(?:es|ed|ing)|S-1|19b-4|application|seek(?:s|ing)?|proposal)",
-             r"(?:expected|expect(?:s|ed)|fil(?:es|ed|ing)|application|seek(?:s|ing)?)\b.{0,50}\b(?:ETF|ETP)s?"],
-         zh=[r"ETF.{0,20}(?:预计|预期|有望|申请|提交|S-1)", r"(?:预计|预期|申请|提交).{0,20}ETF"]),
+         en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:expected|expect(?:s|ed|ation)?|before\s+\d{4}|by\s+\d{4}|fil(?:es|ed|ing)|S-1|19b-4|application|seek(?:s|ing)?|proposal|could|may|might|soon(?:er)?)",
+             r"(?:expected|expect(?:s|ed)|fil(?:es|ed|ing)|application|seek(?:s|ing)?|could|may|might)\b.{0,80}\b(?:ETF|ETP)s?",
+             r"(?:ETF|ETP)s?\b.{0,60}\blaunch(?:es|ed)?\s+sooner"],
+         zh=[r"ETF.{0,20}(?:预计|预期|有望|申请|提交|S-1)", r"(?:预计|预期|有望|将).{0,40}ETF", r"ETF.{0,30}(?:将|會).{0,20}(?:推出|上市)"]),
     dict(key="etf", label="ETF获批/上市", boost=3, big=False, dir="利好", reason="ETF获批/上市，打开机构资金入口",
          dir_rules=[(r"(?:reject(?:s|ed)?|拒绝|推迟|delay(?:s|ed)?)", "利空", "ETF被拒/推迟")],
          en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:approv(?:es|ed|al)|launch(?:es|ed)?|debut(?:s|ed)?|(?:begin|start)s?\s+trading|list(?:s|ed|ing)\b.{0,15}\b(?:on|at|trading))",
              r"(?:approv(?:es|ed|al)|launch(?:es|ed)?)\b.{0,50}\b(?:ETF|ETP)s?"],
-         zh=[r"ETF.{0,20}(?:获批|批准|正式上市|上市交易|推出)", r"(?:批准|获批|正式上市).{0,20}ETF"]),
+         zh=[r"ETF.{0,20}(?:获批|批准|正式上市|上市交易)", r"(?:批准|获批|正式上市).{0,20}ETF"]),
     dict(key="perp_listing", label="新永续合约/高杠杆", boost=3, big=False, dir="利好", reason="新增合约流动性（高杠杆可能放大波动）",
          en=[r"(?:perp(?:etual)?s?|futures)\b.{0,30}\b(?:list(?:s|ed|ing)|launch(?:es|ed)?|go(?:es)? live|add(?:s|ed)?)", r"(?:list(?:s|ed|ing)|launch(?:es|ed)?|add(?:s|ed)?)\b.{0,30}\b(?:perp(?:etual)?s?|futures)", r"\d{3,4}x leverage", r"1000x"],
          zh=[r"(?:永续|合约).{0,10}(?:上线|上架|推出)", r"(?:上线|上架|推出).{0,15}(?:永续|U本位|币本位)合约", r"\d{3,4}\s*倍杠杆", r"1000x"]),
@@ -88,6 +89,7 @@ CATEGORIES = [
 # 项目名 → 代币代码（标题未写代码时用来补全影响币种）
 NAME2TICKER = {
     "ethena": "ENA", "hyperliquid": "HYPE", "starknet": "STRK", "monad": "MON", "sui": "SUI", "near": "NEAR",
+    "injective": "INJ",
     "derive": "DRV", "ethereum": "ETH", "以太坊": "ETH", "bitcoin": "BTC", "比特币": "BTC", "solana": "SOL",
     "arbitrum": "ARB", "optimism": "OP", "aptos": "APT", "celestia": "TIA", "avalanche": "AVAX", "polygon": "POL",
     "chainlink": "LINK", "uniswap": "UNI", "aave": "AAVE", "pump.fun": "PUMP", "worldcoin": "WLD", "berachain": "BERA",
@@ -113,8 +115,19 @@ NON_CRYPTO_LISTING_CTX = re.compile(
 )
 CRYPTO_CONTEXT = re.compile(
     r"(?i)(?:crypto|cryptocurrency|blockchain|token|coin|DeFi|NFT|stablecoin|web3|on-?chain|"
-    r"trading pair|spot market|perpetual|futures|memecoin|airdrop|"
+    r"trading pair|spot market|perpetual|futures|memecoin|airdrop|ETF|ETP|"
     r"代币|区块链|加密|上币|交易所|现货|合约|链上)",
+)
+
+# 含 ETF 且为预期/申请语境时，不得命中 etf（获批/上市）
+ETF_EXPECTATION = re.compile(
+    r"(?i)(?:"
+    r"预计|预期|有望|申请|提交|S-1|19b-4|"
+    r"expects?|expected|could|may|might|fil(?:es|ed|ing)|application|seek(?:s|ing)?|proposal|"
+    r"before\s+\d{4}|by\s+\d{4}|soon(?:er)?|"
+    r"将.{0,20}(?:推出|上市|launch)|"
+    r"(?:预计|预期|有望|将).{0,40}(?:ETF|ETP)"
+    r")"
 )
 
 CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z0-9]{1,11})(?![A-Za-z0-9])")
@@ -136,8 +149,16 @@ for _c in CATEGORIES:
 META = [{"key": c["key"], "label": c["label"], "dir": c["dir"], "big": bool(c["big"])} for c in CATEGORIES]
 
 
+def _etf_expectation_context(text):
+    if not re.search(r"(?i)ETF|ETP", text):
+        return False
+    return bool(ETF_EXPECTATION.search(text))
+
+
 def _text_matches_category(c, text):
     if not c["rx"].search(text):
+        return False
+    if c["key"] == "etf" and _etf_expectation_context(text):
         return False
     if c["key"] == "listing":
         if NON_CRYPTO_LISTING_CTX.search(text):
@@ -189,6 +210,11 @@ def classify(title, summary="", tokens=(), summary_factor=0.5):
     hits.sort(key=lambda x: (x[3] == "标题", x[0], x[1]), reverse=True)
     boost, _, c, where = hits[0]
     text = title if where == "标题" else summary
+    if c["key"] == "etf" and _etf_expectation_context(text):
+        alt = next((h for h in hits if h[2]["key"] == "etf_expected"), None)
+        if alt:
+            boost, _, c, where = alt
+            text = title if where == "标题" else summary
     direction, reason = c["dir"], c["reason"]
     for rx, d, r in c["rx_dir"]:
         if rx.search(text):

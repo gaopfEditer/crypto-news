@@ -59,12 +59,22 @@ def run():
     ro = impact.classify(t_ok, "", [])
     check("ok-listing", ro.get("impact") == "listing", ro)
 
+    t_inj_zh = "Injective CEO：预计与INJ挂钩的美国ETF将在2027年前推出"
+    r_inj_zh = impact.classify(t_inj_zh, "", [])
+    check("inj-zh-etf-expected", r_inj_zh.get("impact") == "etf_expected", r_inj_zh)
+    check("inj-zh-coin", "INJ" in (r_inj_zh.get("coins") or []), r_inj_zh.get("coins"))
+
+    t_inj_en = "Injective CEO Eric Chen expects US INJ ETFs to launch sooner"
+    r_inj_en = impact.classify(t_inj_en, "", [])
+    check("inj-en-etf-expected", r_inj_en.get("impact") == "etf_expected", r_inj_en)
+    check("inj-en-coin", "INJ" in (r_inj_en.get("coins") or []), r_inj_en.get("coins"))
+
     if fails:
         print("FAIL")
         for f in fails:
             print(" ", f)
         return 1
-    print("OK (7 checks)")
+    print("OK (%d checks)" % (9 + 4))
     return 0
 
 
