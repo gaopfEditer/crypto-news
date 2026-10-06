@@ -1,0 +1,72 @@
+name: 更新币安涨跌榜
+
+on:
+  schedule:
+    # UTC 0/4/8/12/16/20 → 北京 8/12/16/20/0/4
+    - cron: '0 0,4,8,12,16,20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  movers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 拉取 gh-pages 现有站点数据
+        run: |
+          mkdir -p publish
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            git archive origin/gh-pages | tar -x -C publish
+            echo "✓ 已解压 gh-pages 到 publish/"
+          else
+            echo "ℹ 无 gh-pages，将首次发布 movers"
+          fi
+
+      - name: 生成 movers.json
+        run: |
+          python3 movers.py \
+            --data-json publish/data.json \
+            --events-dir publish/events \
+            --out publish/movers.json
+
+      - name: 同步前端
+        run: |
+          cp index.html publish/
+          cp calendar.html publish/ 2>/dev/null || true
+          cp events.html publish/ 2>/dev/null || true
+          cp unlocks.html publish/ 2>/dev/null || true
+          echo "" > publish/.nojekyll
+
+      - name: 部署 gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./publish
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: '更新币安涨跌榜 movers.json'
+
+      - name: 摘要
+        run: |
+          echo "### 📈 涨跌榜更新" >> $GITHUB_STEP_SUMMARY
+          python3 -c "import json; d=json.load(open('publish/movers.json')); print(f\"- 快照: {d['updated_utc8']} (UTC+8)\n- 数据源: {d['price_source']}\n- 涨幅 {len(d['gainers'])} / 跌幅 {len(d['losers'])}\")" >> $GITHUB_STEP_SUMMARY

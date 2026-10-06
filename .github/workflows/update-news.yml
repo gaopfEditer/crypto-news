@@ -77,6 +77,15 @@ jobs:
           cp events.html deploy/
           cp unlocks.html deploy/
           
+          # 保留 gh-pages 涨跌榜与其它生成物
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            if git show origin/gh-pages:movers.json >/dev/null 2>&1; then
+              git show origin/gh-pages:movers.json > deploy/movers.json
+              echo "✓ 已保留 movers.json"
+            fi
+          fi
+          
           # 保留 gh-pages 上事件库与各 tracker 缓存（ls-tree 无匹配时仍 exit 0，须检查是否有输出）
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
             git fetch origin gh-pages
