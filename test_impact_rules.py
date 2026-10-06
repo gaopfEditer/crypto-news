@@ -78,12 +78,19 @@ def run():
     st = {"title": t_mstr, "coins": ["STRK"], "tokens": [], "ts": 9999999999}
     check("mstr-movers-no-strk", not movers_mod.story_matches_base(st, "STRK"), st)
 
+    t_okx = "OKX Web3 通过 XIP-Exchange OS 开放撮合，链上现货和永续市场公测"
+    r_okx = impact.classify(t_okx, "", [])
+    check("okx-no-listing", r_okx.get("impact") != "listing", r_okx)
+    check("okx-no-xip", "XIP" not in (r_okx.get("coins") or []), r_okx.get("coins"))
+
+    check("prop-cashtag", "XIP" in impact.extract_coins(r"Launch $XIP on chain", "", []), [])
+
     if fails:
         print("FAIL")
         for f in fails:
             print(" ", f)
         return 1
-    print("OK (%d checks)" % (9 + 4 + 2))
+    print("OK (%d checks)" % (9 + 4 + 2 + 3))
     return 0
 
 

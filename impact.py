@@ -60,7 +60,7 @@ CATEGORIES = [
              r"(?:Binance|Coinbase|OKX|Upbit|Bybit|Bithumb|Kraken|Robinhood|Bitget|Gate|KuCoin|HTX|MEXC|Hyperliquid)\b.{0,20}\b(?:to list|lists|will list|adds?)\b"],
          zh=[r"(?:Binance|币安|OKX|Bybit|Coinbase|Upbit|Bithumb|Gate|Bitget|KuCoin|HTX|Huobi|MEXC|Kraken|Hyperliquid).{0,12}(?:上币|上架|上线|开放交易)",
              r"(?:上币|上架|上线).{0,12}(?:Binance|币安|OKX|Bybit|Coinbase|Upbit|Bithumb|Gate|Bitget|KuCoin|HTX|MEXC|Kraken)",
-             r"开放.{0,6}(?:现货|交易对)"]),
+             r"(?:\$?[A-Z][A-Z0-9]{2,9}).{0,10}(?:上币|上架)", r"开放.{0,6}交易对"]),
     dict(key="mainnet", label="主网上线", boost=4, big=True, dir="利好", reason="主网上线，基本面里程碑（注意预期兑现）",
          en=[r"mainnet\b.{0,20}\b(?:launch(?:es|ed)?|live|debut(?:s|ed)?|go(?:es)? live|goes live)", r"launch(?:es|ed)?\b.{0,20}\bmainnet", r"(?:L1|layer[- ]1|blockchain)\b.{0,15}\b(?:goes live|launch(?:es|ed)?)"],
          zh=[r"主网.{0,6}(?:上线|启动|发布|正式|推出)", r"(?:上线|启动|推出).{0,6}主网", r"L1.{0,6}(?:上线|启动)"]),
@@ -113,6 +113,26 @@ EXCHANGE_NAMES = re.compile(
 NON_CRYPTO_LISTING_CTX = re.compile(
     r"(?i)(?:Amazon|AWS|Bedrock|Azure|Google Cloud|GCP|Vertex AI|OpenAI|Anthropic|Claude|GPT|大模型|LLM|language model|model (?:marketplace|hub|store))",
 )
+# 交易所自有撮合/平台公测 ≠ 某代币上币
+LISTING_INFRA_CTX = re.compile(
+    r"(?i)(?:"
+    r"公测|内测|public beta|open beta|"
+    r"Exchange\s+OS|开放撮合|matching engine|"
+    r"链上现货和永续|on-?chain spot and (?:perp|perpetual)|"
+    r"trading (?:stack|infrastructure|platform)"
+    r")"
+)
+LISTING_TOKEN_SIGNAL = re.compile(
+    r"(?i)(?:"
+    r"(?:to list|will list|lists|listing)\s+(?:\$?(?:[A-Z][A-Z0-9]{1,9}|[A-Za-z]{2,15})\b)|"
+    r"list(?:s|ed|ing)\s+(?:the\s+)?\$[A-Za-z][A-Za-z0-9]+\b|"
+    r"(?:上币|上架)\s*(?:\$|[A-Z][A-Z0-9]{2,9})|"
+    r"(?:\$?[A-Z][A-Z0-9]{2,9}).{0,10}(?:上币|上架)|"
+    r"上线.{0,12}(?:交易对|trading pair)|"
+    r"开放.{0,6}交易对|"
+    r"adds?\s+(?:support for\s+)?\$?[A-Z][A-Z0-9]{2,9}\b"
+    r")"
+)
 CRYPTO_CONTEXT = re.compile(
     r"(?i)(?:crypto|cryptocurrency|blockchain|token|coin|DeFi|NFT|stablecoin|web3|on-?chain|"
     r"trading pair|spot market|perpetual|futures|memecoin|airdrop|ETF|ETP|"
@@ -154,6 +174,30 @@ def strategy_preferred_blocks_ticker(text, ticker):
     return bool(STRATEGY_PREF_CTX.search(text or ""))
 
 
+# 改进提案/标准编号（EIP-1559、XIP-Exchange OS 等），非 $cashtag 时不作币种
+IMP_PROPOSAL_ACRONYMS = frozenset(
+    {"EIP", "ERC", "BIP", "XIP", "SIMD", "AIP", "TIP", "NEP", "CIP", "SIP", "KIP", "MIP", "OIP", "LIP"}
+)
+IMP_PROPOSAL_HYPHEN = re.compile(
+    r"(?i)\b(" + "|".join(sorted(IMP_PROPOSAL_ACRONYMS, key=len, reverse=True)) + r")-(?:\d[\dA-Za-z]*|[A-Za-z][\w-]*)"
+)
+EXCHANGE_OS_PRODUCT = re.compile(r"(?i)Exchange\s+OS\b")
+
+
+def improvement_proposal_blocks_ticker(text, ticker, *, from_cashtag=False):
+    if from_cashtag:
+        return False
+    t = (ticker or "").upper()
+    blob = text or ""
+    if t == "OS" and EXCHANGE_OS_PRODUCT.search(blob):
+        return True
+    if t not in IMP_PROPOSAL_ACRONYMS:
+        return False
+    if IMP_PROPOSAL_HYPHEN.search(blob):
+        return True
+    return True
+
+
 def _rx(en, zh):
     # 中文规则里以 ASCII 字母开头/结尾的片段也加词边界，避免 "TGE" 命中 "Bitget"
     zh2 = [(r"(?<![A-Za-z])" if re.match(r"[A-Za-z]", p) else "") + p + (r"(?![A-Za-z])" if re.search(r"[A-Za-z]$", p) else "") for p in zh]
@@ -185,6 +229,10 @@ def _text_matches_category(c, text):
             return False
         if not EXCHANGE_NAMES.search(text):
             return False
+        if LISTING_INFRA_CTX.search(text) and not LISTING_TOKEN_SIGNAL.search(text):
+            return False
+        if not LISTING_TOKEN_SIGNAL.search(text):
+            return False
     return True
 
 
@@ -194,9 +242,11 @@ def extract_coins(title, summary, tokens):
     blob = title + " " + (summary or "")[:200]
     crypto_ctx = bool(CRYPTO_CONTEXT.search(blob))
 
-    def add(t):
+    def add(t, from_cashtag=False):
         t = t.upper()
         if strategy_preferred_blocks_ticker(blob, t):
+            return
+        if improvement_proposal_blocks_ticker(blob, t, from_cashtag=from_cashtag):
             return
         if t and t not in out and t not in NOT_TICKER and not re.fullmatch(r"\d+[A-Z]?", t):
             out.append(t)
@@ -204,7 +254,7 @@ def extract_coins(title, summary, tokens):
     for t in tokens or []:
         add(t)
     for m in CASHTAG.finditer(blob):
-        add(m.group(1))
+        add(m.group(1), from_cashtag=True)
     low = title.lower()
     for name, tk in NAME2TICKER.items():
         if (CJK.search(name) and name in low) or re.search(r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])", low):
