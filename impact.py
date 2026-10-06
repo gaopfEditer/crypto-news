@@ -133,6 +133,26 @@ ETF_EXPECTATION = re.compile(
 CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z0-9]{1,11})(?![A-Za-z0-9])")
 CAPS = re.compile(r"(?<![A-Za-z0-9$])([A-Z][A-Z0-9]{1,9})(?![A-Za-z0-9])")
 
+# MicroStrategy / Strategy 优先股代码（非 Starknet 等 crypto STRK）
+STRATEGY_PREF_TICKERS = frozenset({"STRF", "STRC", "STRK", "STRD"})
+STRATEGY_PREF_CTX = re.compile(
+    r"(?i)(?:"
+    r"MicroStrategy|\bMSTR\b|"
+    r"Strategy.{0,40}优先股|"
+    r"优先股.{0,60}(?:STRF|STRC|STRK|STRD)|"
+    r"(?:STRF|STRC|STRK|STRD)(?:\s*[,、／/]\s*(?:STRF|STRC|STRK|STRD)){1,}|"
+    r"preferred\s+(?:stock|share|equity|note)s?"
+    r")"
+)
+
+
+def strategy_preferred_blocks_ticker(text, ticker):
+    """标题/摘要为 Strategy 优先股语境时，STRF/STRC/STRK/STRD 不作加密币种。"""
+    t = (ticker or "").upper()
+    if t not in STRATEGY_PREF_TICKERS:
+        return False
+    return bool(STRATEGY_PREF_CTX.search(text or ""))
+
 
 def _rx(en, zh):
     # 中文规则里以 ASCII 字母开头/结尾的片段也加词边界，避免 "TGE" 命中 "Bitget"
@@ -176,6 +196,8 @@ def extract_coins(title, summary, tokens):
 
     def add(t):
         t = t.upper()
+        if strategy_preferred_blocks_ticker(blob, t):
+            return
         if t and t not in out and t not in NOT_TICKER and not re.fullmatch(r"\d+[A-Z]?", t):
             out.append(t)
 

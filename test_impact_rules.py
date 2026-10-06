@@ -69,12 +69,21 @@ def run():
     check("inj-en-etf-expected", r_inj_en.get("impact") == "etf_expected", r_inj_en)
     check("inj-en-coin", "INJ" in (r_inj_en.get("coins") or []), r_inj_en.get("coins"))
 
+    t_mstr = "Strategy 发起优先股自然日付息投票，涉及 STRF、STRC、STRK、STRD"
+    r_mstr = impact.classify(t_mstr, "", [])
+    check("mstr-no-strk-coin", "STRK" not in (r_mstr.get("coins") or []), r_mstr.get("coins"))
+
+    import movers as movers_mod
+
+    st = {"title": t_mstr, "coins": ["STRK"], "tokens": [], "ts": 9999999999}
+    check("mstr-movers-no-strk", not movers_mod.story_matches_base(st, "STRK"), st)
+
     if fails:
         print("FAIL")
         for f in fails:
             print(" ", f)
         return 1
-    print("OK (%d checks)" % (9 + 4))
+    print("OK (%d checks)" % (9 + 4 + 2))
     return 0
 
 

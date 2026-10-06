@@ -12,6 +12,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+import impact
 TZ8 = timezone(timedelta(hours=8))
 UA = "Mozilla/5.0 (compatible; crypto-news-movers/1.0)"
 FAPI = "https://fapi.binance.com"
@@ -146,6 +147,14 @@ def load_events(events_dir):
 
 def story_matches_base(story, base):
     base_u = base.upper()
+    blob = " ".join(
+        filter(
+            None,
+            [story.get("title"), story.get("alt_title"), story.get("summary")],
+        )
+    )
+    if impact.strategy_preferred_blocks_ticker(blob, base_u):
+        return False
     coins = [c.upper() for c in (story.get("coins") or [])]
     if base_u in coins:
         return True
