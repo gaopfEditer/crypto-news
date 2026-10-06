@@ -15,9 +15,11 @@ CJK = re.compile(r"[\u4e00-\u9fff]")
 # boost: 加到 score 的分数（标题全额、摘要减半）；big: 标题命中时允许升为「重大」
 # dir: 默认方向；dir_rules: (正则, 方向, 理由) 覆盖默认方向（按顺序取首个命中）
 CATEGORIES = [
-    dict(key="hack", label="黑客/漏洞", boost=3, big=True, dir="利空", reason="资金被盗/漏洞，恐慌抛售与流动性抽离",
-         en=[r"hack(?:ed|er|ers|s)?", r"exploit(?:ed|s)?", r"drain(?:ed|s)?", r"stolen", r"rug ?pull", r"compromised"],
-         zh=[r"黑客", r"被盗", r"漏洞攻击", r"遭攻击", r"被攻击", r"盗取", r"跑路", r"安全事件"]),
+    dict(key="hack", label="黑客/漏洞", boost=3, big=True, dir="利空", reason="资金被盗/漏洞被利用导致损失，恐慌抛售与流动性抽离",
+         en=[r"hack(?:ed|er|ers|s)?", r"drain(?:ed|s)?", r"stolen", r"rug ?pull", r"compromised",
+             r"exploit(?:ed|s)?\b.{0,40}\b(?:drain|steal|stolen|fund|million|\$|\d+\s*(?:ETH|BTC|USD))",
+             r"(?:lost|lose[sd]?)\b.{0,30}\b(?:\$|\d+\s*(?:million|m\b|ETH|BTC))"],
+         zh=[r"黑客", r"被盗", r"漏洞攻击", r"遭攻击", r"被攻击", r"盗取", r"跑路", r"资金损失"]),
     dict(key="otc_sell", label="机构OTC/大额抛售", boost=5, big=True, dir="利空", reason="团队/机构大额出售，潜在抛压",
          en=[r"OTC\b.{0,40}\b(?:sale|sell(?:s|ing)?|sold|deal)", r"(?:sell(?:s|ing)?|sold|offload(?:s|ed)?|dump(?:s|ed)?)\b.{0,50}\b(?:OTC|to institutions?|institutional buyers?)",
              r"team\b.{0,30}\b(?:sell(?:s|ing)?|sold|dump(?:s|ed)?)"],
@@ -40,16 +42,24 @@ CATEGORIES = [
     dict(key="etf_flow", label="ETF资金流", boost=3, big=False, dir="中性", reason="ETF资金流向",
          dir_rules=[(r"(?:净流出|流出|outflows?)", "利空", "ETF资金净流出"), (r"(?:净流入|流入|inflows?)", "利好", "ETF资金净流入，增量买盘")],
          en=[r"ETFs?\b.{0,40}\b(?:inflows?|outflows?|flows)", r"(?:inflows?|outflows?)\b.{0,40}\bETFs?"], zh=[r"ETF.{0,20}(?:净流入|净流出|流入|流出)"]),
+    dict(key="etf_expected", label="ETF申请/预期", boost=2, big=False, dir="利好", reason="ETF申请或预期获批，尚未落地",
+         en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:expected|expect(?:s|ed|ation)?|before\s+\d{4}|by\s+\d{4}|fil(?:es|ed|ing)|S-1|19b-4|application|seek(?:s|ing)?|proposal)",
+             r"(?:expected|expect(?:s|ed)|fil(?:es|ed|ing)|application|seek(?:s|ing)?)\b.{0,50}\b(?:ETF|ETP)s?"],
+         zh=[r"ETF.{0,20}(?:预计|预期|有望|申请|提交|S-1)", r"(?:预计|预期|申请|提交).{0,20}ETF"]),
     dict(key="etf", label="ETF获批/上市", boost=3, big=False, dir="利好", reason="ETF获批/上市，打开机构资金入口",
          dir_rules=[(r"(?:reject(?:s|ed)?|拒绝|推迟|delay(?:s|ed)?)", "利空", "ETF被拒/推迟")],
-         en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:approv(?:es|ed|al)|launch(?:es|ed)?|debut(?:s|ed)?|list(?:s|ed|ing)|reject(?:s|ed)?)", r"(?:approv(?:es|ed|al)|launch(?:es|ed)?)\b.{0,50}\b(?:ETF|ETP)s?"],
-         zh=[r"ETF.{0,20}(?:获批|批准|上市|推出|拒绝)", r"(?:批准|获批|推出).{0,20}ETF"]),
+         en=[r"(?:ETF|ETP)s?\b.{0,50}\b(?:approv(?:es|ed|al)|launch(?:es|ed)?|debut(?:s|ed)?|(?:begin|start)s?\s+trading|list(?:s|ed|ing)\b.{0,15}\b(?:on|at|trading))",
+             r"(?:approv(?:es|ed|al)|launch(?:es|ed)?)\b.{0,50}\b(?:ETF|ETP)s?"],
+         zh=[r"ETF.{0,20}(?:获批|批准|正式上市|上市交易|推出)", r"(?:批准|获批|正式上市).{0,20}ETF"]),
     dict(key="perp_listing", label="新永续合约/高杠杆", boost=3, big=False, dir="利好", reason="新增合约流动性（高杠杆可能放大波动）",
          en=[r"(?:perp(?:etual)?s?|futures)\b.{0,30}\b(?:list(?:s|ed|ing)|launch(?:es|ed)?|go(?:es)? live|add(?:s|ed)?)", r"(?:list(?:s|ed|ing)|launch(?:es|ed)?|add(?:s|ed)?)\b.{0,30}\b(?:perp(?:etual)?s?|futures)", r"\d{3,4}x leverage", r"1000x"],
          zh=[r"(?:永续|合约).{0,10}(?:上线|上架|推出)", r"(?:上线|上架|推出).{0,15}(?:永续|U本位|币本位)合约", r"\d{3,4}\s*倍杠杆", r"1000x"]),
     dict(key="listing", label="交易所上币", boost=3, big=False, dir="利好", reason="新增交易所上币，流动性与曝光提升",
-         en=[r"(?<!de)list(?:s|ed|ing)\b.{0,30}\b(?:on|at)\b.{0,15}(?:Binance|Coinbase|OKX|Upbit|Bybit|Bithumb|Kraken|Robinhood|Bitget|Gate|KuCoin|HTX)", r"(?:Binance|Coinbase|OKX|Upbit|Bybit|Bithumb|Kraken|Robinhood|Bitget)\b.{0,20}\b(?:to list|lists|will list|adds?)\b"],
-         zh=[r"上线\s*\$?[A-Z][A-Z0-9]{1,11}(?![A-Za-z])", r"上线.{0,10}(?:现货|交易对|代币)", r"上币", r"上架", r"开放.{0,6}交易"]),
+         en=[r"(?<!de)list(?:s|ed|ing)\b.{0,30}\b(?:on|at)\b.{0,15}(?:Binance|Coinbase|OKX|Upbit|Bybit|Bithumb|Kraken|Robinhood|Bitget|Gate|KuCoin|HTX|Huobi|MEXC|Hyperliquid|BingX|LBank)",
+             r"(?:Binance|Coinbase|OKX|Upbit|Bybit|Bithumb|Kraken|Robinhood|Bitget|Gate|KuCoin|HTX|MEXC|Hyperliquid)\b.{0,20}\b(?:to list|lists|will list|adds?)\b"],
+         zh=[r"(?:Binance|币安|OKX|Bybit|Coinbase|Upbit|Bithumb|Gate|Bitget|KuCoin|HTX|Huobi|MEXC|Kraken|Hyperliquid).{0,12}(?:上币|上架|上线|开放交易)",
+             r"(?:上币|上架|上线).{0,12}(?:Binance|币安|OKX|Bybit|Coinbase|Upbit|Bithumb|Gate|Bitget|KuCoin|HTX|MEXC|Kraken)",
+             r"开放.{0,6}(?:现货|交易对)"]),
     dict(key="mainnet", label="主网上线", boost=4, big=True, dir="利好", reason="主网上线，基本面里程碑（注意预期兑现）",
          en=[r"mainnet\b.{0,20}\b(?:launch(?:es|ed)?|live|debut(?:s|ed)?|go(?:es)? live|goes live)", r"launch(?:es|ed)?\b.{0,20}\bmainnet", r"(?:L1|layer[- ]1|blockchain)\b.{0,15}\b(?:goes live|launch(?:es|ed)?)"],
          zh=[r"主网.{0,6}(?:上线|启动|发布|正式|推出)", r"(?:上线|启动|推出).{0,6}主网", r"L1.{0,6}(?:上线|启动)"]),
@@ -89,6 +99,23 @@ NOT_TICKER = set("""ETF ETP SEC CFTC DOJ FCA CEO CTO CFO COO USD USDT USDC EUR C
 DAO API TGE IPO ICO IDO RWA DEFI DEPIN KYC AML APR APY ATH ATL UTC PT ET US UK EU UAE HK SAR MEV ZK EVM SVM VM GPU CPU IT PR AMA Q1 Q2 Q3 Q4 H1 H2
 V1 V2 V3 V4 V5 X OK NO HTX OKX MEXC GATE BYBIT KRAKEN UPBIT COINW LBANK BINGX POOLX OCC OFAC IMF ECB BOJ PBOC YES TOP NEW BREAKING CNBC BBC WSJ NYSE NASDAQ CME MSCI BLS LLC INC LTD CORP PLC SPAC M B K BTCFI FBI IRS ESMA MICA SOL NYDFS""".split()) - {"SOL"}
 NOT_TICKER |= {"SEC", "THE", "AND", "FOR"}
+# 现货 ETF 基金代码（非链上代币）
+NOT_TICKER |= {
+    "IBIT", "FBTC", "FETH", "ETHA", "ETHW", "ETHE", "GBTC", "ARKB", "BITB", "EZBC", "HODL", "BTCW", "BRRR",
+    "BTCO", "YBIT", "BSOL", "THYP", "SOLZ", "SOLT", "ETHV", "QETH", "CETH", "ETHB",
+}
+
+EXCHANGE_NAMES = re.compile(
+    r"(?i)(?:Binance|币安|OKX|Bybit|Coinbase|Upbit|Bithumb|Gate\.?io|\bGate\b|Bitget|KuCoin|HTX|Huobi|MEXC|Kraken|Hyperliquid|Robinhood|BingX|LBank|CoinW|Crypto\.com)",
+)
+NON_CRYPTO_LISTING_CTX = re.compile(
+    r"(?i)(?:Amazon|AWS|Bedrock|Azure|Google Cloud|GCP|Vertex AI|OpenAI|Anthropic|Claude|GPT|大模型|LLM|language model|model (?:marketplace|hub|store))",
+)
+CRYPTO_CONTEXT = re.compile(
+    r"(?i)(?:crypto|cryptocurrency|blockchain|token|coin|DeFi|NFT|stablecoin|web3|on-?chain|"
+    r"trading pair|spot market|perpetual|futures|memecoin|airdrop|"
+    r"代币|区块链|加密|上币|交易所|现货|合约|链上)",
+)
 
 CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z0-9]{1,11})(?![A-Za-z0-9])")
 CAPS = re.compile(r"(?<![A-Za-z0-9$])([A-Z][A-Z0-9]{1,9})(?![A-Za-z0-9])")
@@ -109,9 +136,22 @@ for _c in CATEGORIES:
 META = [{"key": c["key"], "label": c["label"], "dir": c["dir"], "big": bool(c["big"])} for c in CATEGORIES]
 
 
+def _text_matches_category(c, text):
+    if not c["rx"].search(text):
+        return False
+    if c["key"] == "listing":
+        if NON_CRYPTO_LISTING_CTX.search(text):
+            return False
+        if not EXCHANGE_NAMES.search(text):
+            return False
+    return True
+
+
 def extract_coins(title, summary, tokens):
-    """影响币种：关注列表命中 → $cashtag → 项目名映射 → 标题中的大写代码（排除常见缩写）。"""
+    """影响币种：关注列表命中 → $cashtag → 项目名映射 → 标题中的大写代码（需 crypto 语境）。"""
     out = []
+    blob = title + " " + (summary or "")[:200]
+    crypto_ctx = bool(CRYPTO_CONTEXT.search(blob))
 
     def add(t):
         t = t.upper()
@@ -120,16 +160,17 @@ def extract_coins(title, summary, tokens):
 
     for t in tokens or []:
         add(t)
-    for m in CASHTAG.finditer(title + " " + (summary or "")[:200]):
+    for m in CASHTAG.finditer(blob):
         add(m.group(1))
     low = title.lower()
     for name, tk in NAME2TICKER.items():
         if (CJK.search(name) and name in low) or re.search(r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])", low):
             add(tk)
-    for m in CAPS.finditer(title):
-        w = m.group(1)
-        if len(w) >= 2 and not re.fullmatch(r"V?\d[\dA-Z]*", w) and not re.search(r"\d{3,}", w):
-            add(w)
+    if crypto_ctx or out:
+        for m in CAPS.finditer(title):
+            w = m.group(1)
+            if len(w) >= 2 and not re.fullmatch(r"V?\d[\dA-Z]*", w) and not re.search(r"\d{3,}", w):
+                add(w)
     return out[:6]
 
 
@@ -137,9 +178,9 @@ def classify(title, summary="", tokens=(), summary_factor=0.5):
     """返回 dict(impact, impact_label, direction, direction_reason, coins, impact_tag, boost, big_ok, where)。"""
     hits = []
     for i, c in enumerate(CATEGORIES):
-        if c["rx"].search(title):
+        if _text_matches_category(c, title):
             hits.append((c["boost"], -i, c, "标题"))
-        elif summary and c["rx"].search(summary):
+        elif summary and _text_matches_category(c, summary):
             hits.append((c["boost"] * summary_factor, -i, c, "摘要"))
     coins = extract_coins(title, summary, tokens)
     if not hits:

@@ -245,23 +245,22 @@
       "big": true,
       "en": [
         "hack(?:ed|er|ers|s)?",
-        "exploit(?:ed|s)?",
         "drain(?:ed|s)?",
         "stolen",
         "breach(?:ed)?",
-        "attack(?:ed|er)?",
         "compromised",
-        "rug ?pull"
+        "rug ?pull",
+        "exploit(?:ed|s)?\\b.{0,40}\\b(?:drain|steal|stolen|fund|million|\\$|\\d+\\s*(?:ETH|BTC|USD))",
+        "(?:lost|lose[sd]?)\\b.{0,30}\\b(?:\\$|\\d+\\s*(?:million|m\\b|ETH|BTC))"
       ],
       "zh": [
-        "漏洞",
         "被盗",
         "黑客",
         "遭攻击",
-        "攻击者",
-        "盗取",
         "被攻击",
-        "跑路"
+        "盗取",
+        "跑路",
+        "资金损失"
       ]
     },
     {
@@ -324,12 +323,14 @@
         "charges",
         "sanction(?:s|ed)?",
         "subpoena(?:s|ed)?",
-        "settle(?:s|d|ment)",
+        "settle(?:s|d)?\\b.{0,25}\\b(?:charges|lawsuit|case|with\\s+(?:SEC|CFTC|DOJ|FCA))",
+        "settlement\\b.{0,25}\\b(?:with\\s+(?:SEC|CFTC|DOJ|FCA)|charges|lawsuit|case)",
+        "(?:SEC|CFTC|DOJ|FCA)\\b.{0,40}\\bsettle(?:s|d|ment)",
         "fine[sd]?",
         "penalt(?:y|ies)",
-        "ban(?:s|ned)?",
+        "ban(?:s|ned)?\\b(?![a-z])",
         "arrest(?:s|ed)?",
-        "(?:SEC|CFTC|DOJ|FCA|ESMA)\\b.{0,40}\\b(?:propos(?:es|ed|al)|rules?|reject(?:s|ed)|guidance|order|probe|investigat\\w*)"
+        "(?:SEC|CFTC|DOJ|FCA|ESMA)\\b.{0,40}\\b(?:propos(?:es|ed|al)|rules?|reject(?:s|ed)|guidance|order|probe|investigat\\w*|charg\\w+|sue[sd]?|lawsuit)"
       ],
       "zh": [
         "诉讼",
