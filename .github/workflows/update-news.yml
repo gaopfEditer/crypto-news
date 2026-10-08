@@ -63,6 +63,7 @@ jobs:
       - name: 处理日历事件
         id: calendar
         run: |
+          pip install yfinance
           python3 fetch_calendar.py
 
       - name: 准备部署

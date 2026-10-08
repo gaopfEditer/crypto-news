@@ -275,25 +275,11 @@ GitHub Actions 工作流会：
 4. 计算相对预期（高于/低于/符合）
 5. 生成 `calendar.json` 部署到 gh-pages
 
-### 添加财报日期
+### 财报日期（自动）
 
-```json
-{
-  "id": "nvda-q4-2026",
-  "category": "earnings",
-  "type": "财报",
-  "symbol": "NVDA",
-  "anchor": "QQQ",
-  "importance": "big",
-  "time_et": "2026-11-20 16:30",
-  "expected": "",
-  "previous": "",
-  "actual": "",
-  "source_url": "https://investor.nvidia.com/",
-  "confirmed": false,
-  "note": "NVIDIA Q4 FY2026财报，预估日期"
-}
-```
+`fetch_earnings.py` 会读取 `earnings_watchlist.json`（QQQ 相关大盘科技与市值龙头），用 **Yahoo Finance** 拉取未来约一个季度的公布日，并在公布日当天用 **Nasdaq 财报日历** 补充盘前/盘后、公司名与 EPS 共识。结果由 `fetch_calendar.py` 合并进 `calendar.json`（无需再在 `calendar_seed.json` 手写财报）。
+
+扩展覆盖范围时，只需编辑 `earnings_watchlist.json` 中的 `symbols` 列表。
 
 ### 添加币圈事件
 

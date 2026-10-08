@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+from fetch_earnings import fetch_earnings_events
+
 def log(*a):
     print(*a, file=sys.stderr, flush=True)
 
@@ -178,8 +180,14 @@ def process_calendar():
     now_utc = datetime.now(timezone.utc)
     now_beijing = now_utc.astimezone(ZoneInfo("Asia/Shanghai"))
     
-    # 过滤掉手工输入的初请失业金（将由程序生成）
-    base_events = [e for e in seed_data.get("events", []) if e.get("symbol") != "CLAIMS"]
+    # 过滤掉将由程序生成/拉取的数据
+    base_events = [
+        e
+        for e in seed_data.get("events", [])
+        if e.get("symbol") != "CLAIMS" and e.get("category") != "earnings"
+    ]
+
+    earnings_events = fetch_earnings_events()
     
     # 生成初请失业金事件（未来28天的所有周四）
     ny_tz = ZoneInfo("America/New_York")
@@ -187,7 +195,7 @@ def process_calendar():
     claims_events = generate_initial_claims(datetime(today_et.year, today_et.month, today_et.day), days=28)
     
     # 合并事件
-    all_events = base_events + claims_events
+    all_events = base_events + claims_events + earnings_events
     
     # 强制所有宏观事件为重大
     for event in all_events:
