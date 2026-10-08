@@ -88,7 +88,7 @@ button.on{background:#1f3350;border-color:var(--acc);color:#fff}
 
 <div class="section">
   <div id="upcomingSection">
-    <h2 class="section-title">📅 即将发生（未来14天）</h2>
+    <h2 class="section-title" id="upcomingTitle">📅 即将发生（未来14天）</h2>
     <div class="list" id="upcomingList"><div class="empty">加载中…</div></div>
   </div>
   <div id="pastSection" style="display:none">
@@ -234,16 +234,18 @@ function render(){
   if (!data) return;
   
   const now = Date.now() / 1000;
-  const twoWeeks = now + 14 * 86400;
   
-  let upcoming = data.upcoming || [];
+  const allUpcoming = data.upcoming || [];
   let past = data.past || [];
   
-  // 过滤未来14天
-  upcoming = upcoming.filter(e => {
+  const EARNINGS_HORIZON_DAYS = 95;
+  // 宏观/币圈 14 天；财报约一个季度，避免 14 天窗口把财报分类滤没
+  let upcoming = allUpcoming.filter(e => {
     if (!e.time_utc) return true;
     const ts = new Date(e.time_utc).getTime() / 1000;
-    return ts <= twoWeeks;
+    const days = e.category === "earnings" ? EARNINGS_HORIZON_DAYS : 14;
+    const limit = now + days * 86400;
+    return ts <= limit;
   });
   
   const upcomingFiltered = upcoming.filter(passes);
@@ -257,11 +259,14 @@ function render(){
   const upList = $("upcomingList");
   const paList = $("pastList");
   
+  const titleDays = st.category === "earnings" ? EARNINGS_HORIZON_DAYS : 14;
+  $("upcomingTitle").textContent = `📅 即将发生（未来${titleDays}天）`;
+
   upList.innerHTML = upcomingFiltered.length ? upcomingFiltered.map(card).join("") : '<div class="empty">暂无即将发生的事件</div>';
   paList.innerHTML = pastFiltered.length ? pastFiltered.slice().reverse().map(card).join("") : '<div class="empty">暂无已公布的事件</div>';
   
   // 填充分类下拉
-  const cats = [...new Set([...upcoming, ...past].map(e => e.category))];
+  const cats = [...new Set(["macro", "earnings", "crypto", ...allUpcoming.map(e => e.category), ...past.map(e => e.category)])];
   const catSel = $("fCategory");
   const catHtml = '<option value="">全部</option>' + cats.map(c => `<option value="${esc(c)}">${getCategoryLabel(c)}</option>`).join("");
   if (catSel.dataset.h !== catHtml) {
