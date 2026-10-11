@@ -13,8 +13,14 @@ a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
 .top{position:sticky;top:0;z-index:6;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px}
 .brand{font-weight:700;color:var(--warn);font-family:Menlo,monospace}
-.nav a{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px}
-.nav a.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.site-nav{display:flex;gap:4px;margin-left:12px;align-items:center;flex-wrap:wrap}
+.nav-link{padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none}
+.nav-link:hover{border-color:var(--acc);color:var(--acc)}
+.nav-link.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.seg.site-main-tabs{box-shadow:0 2px 12px rgba(0,0,0,.28);border-radius:8px;overflow:hidden}
+.seg.site-main-tabs a{display:inline-block;padding:6px 14px;font-size:12px;font-weight:600;color:var(--dim);background:var(--panel2);text-decoration:none;border-right:1px solid var(--line)}
+.seg.site-main-tabs a:last-child{border-right:none}
+.seg.site-main-tabs a:hover{color:var(--acc)}
 .tabs{display:flex;flex-wrap:wrap;gap:4px}
 .tab{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);cursor:pointer;font-size:12px}
 .tab.on{border-color:var(--acc);background:#1f3350;color:#fff}
@@ -48,10 +54,13 @@ label.future{font-size:12px;color:var(--dim)}
 <div class="top">
   <div class="bar">
     <span class="brand">◆ CRYPTO NEWS WATCH</span>
-    <div class="nav">
-      <a href="index.html">新闻</a>
-      <a href="calendar.html">日历</a>
-      <a href="events.html" class="active">事件追踪</a>
+    <div class="site-nav">
+      <span class="seg site-main-tabs" title="首页视图">
+        <a href="index.html">新闻流</a>
+        <a href="index.html?view=movers">行情榜</a>
+      </span>
+      <a href="calendar.html" class="nav-link">日历</a>
+      <a href="events.html" class="nav-link active">事件追踪</a>
     </div>
     <span class="sp"></span>
     <span class="poll" id="poll">加载中…</span>
