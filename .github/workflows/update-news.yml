@@ -77,6 +77,8 @@ jobs:
           cp calendar.html deploy/
           cp events.html deploy/
           cp unlocks.html deploy/
+          cp potential.html deploy/ 2>/dev/null || true
+          cp potential.json deploy/ 2>/dev/null || true
           
           # 保留 gh-pages 涨跌榜与其它生成物
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
