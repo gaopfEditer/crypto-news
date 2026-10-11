@@ -7,6 +7,46 @@ import time
 
 DEFAULT_KEEP_DAYS = 30
 
+# Upbit trade list/detail JSON is identical for delist vs spot_listing trackers.
+_UPBIT_RAW_PREFIX = "upbit_"
+
+
+def _raw_dir(cache_root):
+    return os.path.join(cache_root, "raw")
+
+
+def mirror_upbit_cache(cache_roots):
+    """Merge upbit_*.json across tracker cache dirs (newer mtime wins)."""
+    roots = [r for r in cache_roots if r]
+    if len(roots) < 2:
+        return
+    by_name = {}
+    for root in roots:
+        raw = _raw_dir(root)
+        if not os.path.isdir(raw):
+            continue
+        for fn in os.listdir(raw):
+            if not fn.startswith(_UPBIT_RAW_PREFIX) or not fn.endswith(".json"):
+                continue
+            path = os.path.join(raw, fn)
+            try:
+                mtime = os.path.getmtime(path)
+            except OSError:
+                continue
+            prev = by_name.get(fn)
+            if prev is None or mtime > prev[0]:
+                by_name[fn] = (mtime, path)
+    for root in roots:
+        raw = _raw_dir(root)
+        os.makedirs(raw, exist_ok=True)
+        for fn, (_, src) in by_name.items():
+            dest = os.path.join(raw, fn)
+            try:
+                if not os.path.isfile(dest) or os.path.getmtime(src) > os.path.getmtime(dest):
+                    shutil.copy2(src, dest)
+            except OSError:
+                pass
+
 
 def restore(publish_dir, local_pairs):
     """local_pairs: list of (type_name, local_cache_root)."""
@@ -29,9 +69,11 @@ def restore(publish_dir, local_pairs):
             for fn in os.listdir(legacy):
                 if fn.endswith(".json"):
                     shutil.copy2(os.path.join(legacy, fn), os.path.join(cmc, fn))
+    mirror_upbit_cache([local for _, local in local_pairs])
 
 
 def publish(local_pairs, publish_dir, keep_days=DEFAULT_KEEP_DAYS):
+    mirror_upbit_cache([local for _, local in local_pairs])
     for name, local in local_pairs:
         if not os.path.isdir(local):
             continue

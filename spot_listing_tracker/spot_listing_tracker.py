@@ -32,7 +32,26 @@ LOOKBACK_ANN = 60 * DAY
 ALL_EX = ["upbit", "bitget", "okx", "binance", "bithumb"]
 UPBIT_LIST = re.compile(r"신규 거래지원|디지털 자산 추가|마켓 추가")
 UPBIT_SKIP = re.compile(r"거래지원 종료|거래 유의|입출금.*중단|출금.*중단|제한 해제")
+UPBIT_ROW = re.compile(
+    r"<tr>\s*<td>([^<]{1,120}?)\(([A-Z0-9]{1,15})\)</td>\s*<td>([^<]+)</td>",
+    re.I,
+)
 QUOTES = ("USDT", "USDC", "KRW", "BTC", "ETH", "BRL", "TRY")
+
+
+def upbit_iso_ts(s):
+    """Upbit API ISO8601 (+09:00 / Z / fractional seconds) → unix ts."""
+    if not s:
+        raise ValueError("empty time")
+    s = str(s).strip().replace("Z", "+00:00")
+    m = re.match(r"(\d{4}-\d\d-\d\d[T ]\d\d:\d\d(?::\d\d)?)(?:\.(\d+))?(.*)$", s)
+    if not m:
+        raise ValueError(s)
+    base, _frac, tz = m.groups()
+    d = dt.datetime.fromisoformat(base + (tz or ""))
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=dt.timezone.utc)
+    return int(d.timestamp())
 
 
 def log(*a):
@@ -78,49 +97,110 @@ def sym_from_title(title):
     return m.group(1) if m else None
 
 
+def _upbit_list_time_from_body(body, sym, ref_ts):
+    tcell = re.search(
+        rf"{re.escape(sym)}.*?</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>",
+        body,
+        re.S | re.I,
+    )
+    list_txt = tcell.group(4) if tcell else body
+    return parse_korean_list_time(list_txt, ref_ts) or ref_ts
+
+
 def src_upbit(http, lo, hi):
     out, items = [], []
-    for page in range(1, 12):
-        d = http.get(
-            f"https://api-manager.upbit.com/api/v1/announcements?os=web&page={page}&per_page=20&category=trade",
-            f"upbit_trade_p{page}.json",
-            ttl=30 * 60,
-        )
-        lst = d["data"]["notices"]
-        items += lst
-        if not lst or dt.datetime.fromisoformat(lst[-1]["listed_at"]).timestamp() < lo - LOOKBACK_ANN:
+    page_errors = []
+    for page in range(1, 10):
+        try:
+            d = http.get(
+                f"https://api-manager.upbit.com/api/v1/announcements?os=web&page={page}&per_page=20&category=trade",
+                f"upbit_trade_p{page}.json",
+                ttl=30 * 60,
+            )
+            lst = (d.get("data") or {}).get("notices") or []
+        except Exception as ex:
+            page_errors.append(f"page{page}: {ex}")
+            log(f"upbit list page {page}: {ex}")
             break
+        if not lst:
+            break
+        items += lst
+        try:
+            oldest = upbit_iso_ts(lst[-1].get("listed_at"))
+        except (ValueError, TypeError, KeyError) as ex:
+            log(f"upbit: bad listed_at on page {page}: {ex}")
+            break
+        if oldest < lo - LOOKBACK_ANN:
+            break
+    pending = []
     for a in items:
         title = a.get("title") or ""
-        rel = int(dt.datetime.fromisoformat(a.get("first_listed_at") or a["listed_at"]).timestamp())
+        try:
+            rel = upbit_iso_ts(a.get("first_listed_at") or a.get("listed_at"))
+        except (ValueError, TypeError, KeyError):
+            log(f"upbit: skip bad time id={a.get('id')} title={title[:40]}")
+            continue
         if rel < lo - LOOKBACK_ANN or rel > hi:
             continue
         if not UPBIT_LIST.search(title) or UPBIT_SKIP.search(title):
             continue
-        d = http.get(f"https://api-manager.upbit.com/api/v1/announcements/{a['id']}", f"upbit_list_{a['id']}.json", ttl=7 * DAY)
-        body = d["data"].get("body") or ""
-        url = f"https://upbit.com/service_center/notice?id={a['id']}"
-        found = False
-        for row in re.findall(r"<tr>\s*<td>([^<]{1,80}?)\(([A-Z0-9]{1,15})\)</td>\s*<td>([^<]+)</td>", body, re.I):
-            nm, sym, markets = row[0].strip(), row[1].upper(), row[2].strip()
-            tcell = re.search(
-                rf"{re.escape(sym)}.*?</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>",
-                body,
-                re.S | re.I,
+        ann_id = a.get("id")
+        if not ann_id:
+            continue
+        pending.append((rel, a, title, ann_id))
+    pending.sort(key=lambda x: x[0], reverse=True)
+    detail_budget = 36
+    for rel, a, title, ann_id in pending:
+        url = f"https://upbit.com/service_center/notice?id={ann_id}"
+        if detail_budget <= 0 and rel < lo:
+            sym = sym_from_title(title)
+            if sym:
+                out.append(mk("Upbit", sym, rel, rel, url=url, title=title, list_src="title_fallback_budget"))
+            continue
+        if detail_budget <= 0:
+            continue
+        detail_budget -= 1
+        try:
+            det = http.get(
+                f"https://api-manager.upbit.com/api/v1/announcements/{ann_id}",
+                f"upbit_ann_{ann_id}.json",
+                ttl=7 * DAY,
             )
-            list_txt = tcell.group(4) if tcell else body
-            lt = parse_korean_list_time(list_txt, rel) or rel
+            body = (det.get("data") or {}).get("body") or ""
+        except Exception as ex:
+            page_errors.append(f"ann{ann_id}: {ex}")
+            log(f"upbit detail {ann_id}: {ex}")
+            sym = sym_from_title(title)
+            if sym:
+                out.append(
+                    mk(
+                        "Upbit",
+                        sym,
+                        rel,
+                        rel,
+                        url=f"https://upbit.com/service_center/notice?id={ann_id}",
+                        title=title,
+                        list_src="title_fallback_no_body",
+                    )
+                )
+            continue
+        found = False
+        for nm, sym, markets in UPBIT_ROW.findall(body):
+            sym = sym.upper()
+            lt = _upbit_list_time_from_body(body, sym, rel)
             out.append(
-                mk("Upbit", sym, lt, rel, name=nm, pairs=markets, url=url, title=title, list_src="announcement")
+                mk("Upbit", sym, lt, rel, name=nm.strip(), pairs=markets.strip(), url=url, title=title, list_src="announcement")
             )
             found = True
         if not found:
             sym = sym_from_title(title)
             if sym:
-                lt = parse_korean_list_time(body, rel) or rel
+                lt = _upbit_list_time_from_body(body, sym, rel)
                 out.append(mk("Upbit", sym, lt, rel, url=url, title=title, list_src="title_fallback"))
             else:
                 log(f"upbit: cannot parse {title}")
+    if not out and page_errors and not items:
+        raise RuntimeError("; ".join(page_errors[:3]))
     return out
 
 

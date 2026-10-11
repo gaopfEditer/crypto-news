@@ -106,6 +106,7 @@ jobs:
         working-directory: repo
         run: |
           set +e
+          python3 -c "import sys; sys.path.insert(0,'event_store'); from cache_util import mirror_upbit_cache; mirror_upbit_cache(['delist_tracker/cache','spot_listing_tracker/cache'])"
           OUT=spot_listing_tracker/output/latest
           rm -rf "$OUT" && mkdir -p "$OUT"
           if python3 spot_listing_tracker/spot_listing_tracker.py --quiet --out "$OUT" --cache spot_listing_tracker/cache; then
