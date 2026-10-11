@@ -45,12 +45,14 @@ def parse_run_meta(etype, out_dir):
                 failed.add("defillama")
             if "coinmarkcap" in err_l or "cmc" in err_l[:20]:
                 failed.add("cmc")
-        elif etype == "delist":
+        elif etype in ("delist", "spot_listing"):
             for ex in EXCHANGE_KEYS:
                 if err_l.startswith(ex + ":") or err_l.startswith(ex + " "):
                     failed.add(ex)
             if "gate" in err_l and "403" in err_l:
                 failed.add("gate")
+            if "bithumb" in err_l:
+                failed.add("bithumb")
         elif etype == "perp_listing":
             for ex in ("binance", "okx", "bybit", "bitget"):
                 if ex in err_l[:40]:

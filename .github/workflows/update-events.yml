@@ -100,6 +100,21 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: 上交易所（现货）
+        id: spot_listing
+        continue-on-error: true
+        working-directory: repo
+        run: |
+          set +e
+          OUT=spot_listing_tracker/output/latest
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          if python3 spot_listing_tracker/spot_listing_tracker.py --quiet --out "$OUT" --cache spot_listing_tracker/cache; then
+            python3 event_store/merge.py merge spot_listing "$OUT" publish/events
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 写回缓存与页面
         working-directory: repo
         run: |
@@ -134,4 +149,4 @@ jobs:
         working-directory: repo
         run: |
           echo "### 事件库更新" >> "$GITHUB_STEP_SUMMARY"
-          echo "unlock: ${{ steps.unlock.outputs.ok }} | delist: ${{ steps.delist.outputs.ok }} | perp: ${{ steps.perp.outputs.ok }} | burn: ${{ steps.burn.outputs.ok }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "unlock: ${{ steps.unlock.outputs.ok }} | delist: ${{ steps.delist.outputs.ok }} | perp: ${{ steps.perp.outputs.ok }} | burn: ${{ steps.burn.outputs.ok }} | spot: ${{ steps.spot_listing.outputs.ok }}" >> "$GITHUB_STEP_SUMMARY"

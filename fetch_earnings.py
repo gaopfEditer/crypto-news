@@ -32,7 +32,8 @@ def load_watchlist(path="earnings_watchlist.json"):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     symbols = data.get("symbols") or []
-    return [s.upper() for s in symbols if s]
+    names_zh = {k.upper(): v for k, v in (data.get("names_zh") or {}).items()}
+    return [s.upper() for s in symbols if s], names_zh
 
 
 def _fetch_nasdaq_day(date_str, retries=3):
@@ -94,22 +95,91 @@ def _parse_earnings_dates(calendar_obj):
     return out
 
 
-def _yf_next_earnings(symbol):
+def _pct_chg(series, bars_back):
+    if series is None or len(series) <= bars_back:
+        return None
+    try:
+        last = float(series.iloc[-1])
+        base = float(series.iloc[-1 - bars_back])
+        if base <= 0:
+            return None
+        return (last / base - 1.0) * 100.0
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def _build_market_context(symbol, hist, info, qqq_close, as_of_utc8):
+    """近期行情摘要：Yahoo 日收盘价，便于财报前后对照 QQQ。"""
+    if hist is None or hist.empty or "Close" not in hist:
+        return None
+    close = hist["Close"].dropna()
+    if len(close) < 2:
+        return None
+    price = float(close.iloc[-1])
+    chg_5d = _pct_chg(close, 5)
+    chg_21d = _pct_chg(close, 21)
+    chg_63d = _pct_chg(close, 63)
+    vs_qqq_21d = None
+    if qqq_close is not None and len(qqq_close) > 22:
+        q21 = _pct_chg(qqq_close, 21)
+        if chg_21d is not None and q21 is not None:
+            vs_qqq_21d = chg_21d - q21
+    hi52 = info.get("fiftyTwoWeekHigh") if info else None
+    lo52 = info.get("fiftyTwoWeekLow") if info else None
+    dist_hi = None
+    if hi52 and hi52 > 0:
+        try:
+            dist_hi = (price / float(hi52) - 1.0) * 100.0
+        except (TypeError, ValueError):
+            dist_hi = None
+    parts = []
+    if chg_21d is not None:
+        parts.append(f"近21交易日 {'+' if chg_21d >= 0 else ''}{chg_21d:.1f}%")
+    if vs_qqq_21d is not None:
+        parts.append(f"较 QQQ {'+' if vs_qqq_21d >= 0 else ''}{vs_qqq_21d:.1f}pp")
+    if dist_hi is not None:
+        parts.append(f"距52周高点 {dist_hi:+.1f}%")
+    if chg_5d is not None:
+        parts.append(f"近5日 {'+' if chg_5d >= 0 else ''}{chg_5d:.1f}%")
+    summary = "；".join(parts) if parts else "近期行情数据不足"
+    methodology = (
+        "日收盘价；5日=最近5个交易日环比；21日≈1个月(21个交易日)；"
+        "63日≈3个月；较QQQ为同窗口累计收益差(百分点)；52周高低来自 Yahoo 基本面字段。"
+    )
+    return {
+        "as_of_utc8": as_of_utc8,
+        "price_usd": round(price, 4) if price < 1000 else round(price, 2),
+        "change_5d_pct": round(chg_5d, 2) if chg_5d is not None else None,
+        "change_21d_pct": round(chg_21d, 2) if chg_21d is not None else None,
+        "change_63d_pct": round(chg_63d, 2) if chg_63d is not None else None,
+        "vs_qqq_21d_pp": round(vs_qqq_21d, 2) if vs_qqq_21d is not None else None,
+        "fifty_two_week_high": hi52,
+        "fifty_two_week_low": lo52,
+        "pct_from_52w_high": round(dist_hi, 2) if dist_hi is not None else None,
+        "data_source": "Yahoo Finance (yfinance)",
+        "methodology_zh": methodology,
+        "summary_zh": summary,
+    }
+
+
+def _yf_symbol_bundle(symbol, qqq_close, as_of_utc8):
     try:
         ticker = yf.Ticker(symbol)
         dates = _parse_earnings_dates(ticker.calendar)
-        if not dates:
-            return None, None
-        name = None
+        info = {}
         try:
             info = ticker.info or {}
-            name = info.get("shortName") or info.get("longName")
         except Exception:
-            name = None
-        return dates, name
+            info = {}
+        name = info.get("shortName") or info.get("longName")
+        hist = ticker.history(period="6mo", interval="1d")
+        ctx = _build_market_context(symbol, hist, info, qqq_close, as_of_utc8)
+        if not dates:
+            return None, name, ctx
+        return dates, name, ctx
     except Exception as e:
         log(f"yfinance {symbol} 失败: {e}")
-        return None, None
+        return None, None, None
 
 
 def _row_to_event(row, report_date, fallback_name=None):
@@ -179,12 +249,22 @@ def fetch_earnings_events(
     days_back=DEFAULT_DAYS_BACK,
     watchlist_path="earnings_watchlist.json",
 ):
-    symbols = load_watchlist(watchlist_path)
+    symbols, names_zh = load_watchlist(watchlist_path)
     if not symbols:
         log("⚠ earnings_watchlist.json 为空，跳过财报抓取")
         return []
 
     ny = ZoneInfo("America/New_York")
+    bj = ZoneInfo("Asia/Shanghai")
+    as_of_utc8 = datetime.now(bj).strftime("%Y-%m-%d %H:%M")
+    qqq_close = None
+    try:
+        qqq_hist = yf.Ticker("QQQ").history(period="6mo", interval="1d")
+        if qqq_hist is not None and not qqq_hist.empty:
+            qqq_close = qqq_hist["Close"].dropna()
+    except Exception as e:
+        log(f"QQQ 基准行情失败: {e}")
+
     today = datetime.now(ny).date()
     lo = today - timedelta(days=days_back)
     hi = today + timedelta(days=days_ahead)
@@ -192,12 +272,15 @@ def fetch_earnings_events(
     # 1) Yahoo Finance：各标的下一次/多次公布日
     symbol_dates = {}
     yf_names = {}
+    market_ctx = {}
     for sym in symbols:
-        dates, name = _yf_next_earnings(sym)
+        dates, name, ctx = _yf_symbol_bundle(sym, qqq_close, as_of_utc8)
         if not dates:
             continue
         if name:
             yf_names[sym] = name
+        if ctx:
+            market_ctx[sym] = ctx
         in_window = [d for d in dates if lo <= d <= hi]
         if in_window:
             symbol_dates[sym] = sorted(set(in_window))
@@ -231,6 +314,10 @@ def fetch_earnings_events(
             else:
                 ev = _fallback_event(sym, day_str, yf_names.get(sym))
             if ev:
+                ev["name_zh"] = names_zh.get(sym) or ""
+                ev["company_name_en"] = yf_names.get(sym) or ev.get("type")
+                if market_ctx.get(sym):
+                    ev["market_context"] = market_ctx[sym]
                 events[ev["id"]] = ev
 
     result = sorted(events.values(), key=lambda e: (e.get("time_et") or "", e.get("symbol") or ""))

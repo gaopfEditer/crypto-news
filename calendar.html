@@ -60,6 +60,14 @@ button.on{background:#1f3350;border-color:var(--acc);color:#fff}
 .data-value.low{color:var(--down)}
 .data-value.inline{color:var(--warn)}
 .empty{color:var(--dim);padding:40px;text-align:center}
+.name-zh{font-size:14px;color:#c9d4e2;margin:0 0 4px;font-weight:600}
+.name-en{font-size:12px;color:var(--dim);margin-bottom:4px}
+.market-block{margin-top:8px;padding:8px 10px;border-radius:6px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25)}
+.market-summary{font-size:12px;color:#b8c5d6;line-height:1.5}
+.market-stats{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px}
+.market-stats .data-item{min-width:72px}
+.market-meta{font-size:10px;color:var(--mute);margin-top:6px;line-height:1.4;cursor:help;border-bottom:1px dotted transparent}
+.market-meta:hover{color:var(--dim)}
 @media (max-width:700px){.title{font-size:14px}.filters{font-size:11px}}
 </style>
 </head>
@@ -186,13 +194,47 @@ function card(event){
   
   h += `<div class="title">`;
   if (event.symbol && event.category === "earnings") {
-    h += `<span class="symbol">${esc(event.symbol)}</span> `;
-  }
-  h += `${esc(event.type)}`;
-  if (event.symbol && event.category !== "earnings") {
-    h += ` (${esc(event.symbol)})`;
+    h += `<span class="symbol">${esc(event.symbol)}</span>`;
+    if (event.name_zh) {
+      h += ` <span style="color:var(--txt);font-weight:600">${esc(event.name_zh)}</span>`;
+    } else {
+      h += ` ${esc(event.type)}`;
+    }
+  } else {
+    h += `${esc(event.type)}`;
+    if (event.symbol) h += ` (${esc(event.symbol)})`;
   }
   h += '</div>';
+  if (event.category === "earnings") {
+    const en = event.company_name_en || event.type;
+    if (en && event.name_zh) h += `<div class="name-en">${esc(en)}</div>`;
+    const mc = event.market_context;
+    if (mc) {
+      h += '<div class="market-block">';
+      h += `<div class="market-summary">${esc(mc.summary_zh || "—")}</div>`;
+      h += '<div class="market-stats">';
+      if (mc.price_usd != null) {
+        h += '<div class="data-item"><div class="data-label">现价</div><div class="data-value">$' + esc(mc.price_usd) + '</div></div>';
+      }
+      if (mc.change_21d_pct != null) {
+        const c = mc.change_21d_pct >= 0 ? "high" : "low";
+        h += '<div class="data-item"><div class="data-label">21日</div><div class="data-value ' + c + '">' +
+          (mc.change_21d_pct >= 0 ? "+" : "") + esc(mc.change_21d_pct) + '%</div></div>';
+      }
+      if (mc.vs_qqq_21d_pp != null) {
+        const c = mc.vs_qqq_21d_pp >= 0 ? "high" : "low";
+        h += '<div class="data-item"><div class="data-label">vs QQQ</div><div class="data-value ' + c + '">' +
+          (mc.vs_qqq_21d_pp >= 0 ? "+" : "") + esc(mc.vs_qqq_21d_pp) + 'pp</div></div>';
+      }
+      if (mc.pct_from_52w_high != null) {
+        h += '<div class="data-item"><div class="data-label">距52周高</div><div class="data-value">' + esc(mc.pct_from_52w_high) + '%</div></div>';
+      }
+      h += '</div>';
+      const tip = (mc.methodology_zh || "") + " 来源：" + (mc.data_source || "");
+      h += `<div class="market-meta" title="${esc(tip)}">口径：${esc(mc.data_source || "Yahoo")} · 截至 ${esc(mc.as_of_utc8 || "")}（悬停查看计算说明）</div>`;
+      h += '</div>';
+    }
+  }
   
   h += `<div class="meta"><span class="t">${formatTime(event)}</span>`;
   if (event.note) {

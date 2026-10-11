@@ -277,9 +277,9 @@ GitHub Actions 工作流会：
 
 ### 财报日期（自动）
 
-`fetch_earnings.py` 会读取 `earnings_watchlist.json`（QQQ 相关大盘科技与市值龙头），用 **Yahoo Finance** 拉取未来约一个季度的公布日，并在公布日当天用 **Nasdaq 财报日历** 补充盘前/盘后、公司名与 EPS 共识。结果由 `fetch_calendar.py` 合并进 `calendar.json`（无需再在 `calendar_seed.json` 手写财报）。
+`fetch_earnings.py` 会读取 `earnings_watchlist.json`（QQQ 相关大盘科技与市值龙头），用 **Yahoo Finance** 拉取未来约一个季度的公布日，并在公布日当天用 **Nasdaq 财报日历** 补充盘前/盘后、公司名与 EPS 共识。每条财报附带 **`names_zh` 中文公司名** 与 **`market_context` 近期行情**（5/21/63 交易日涨跌、21 日相对 QQQ、距 52 周高点；口径见 `methodology_zh`，数据来自 Yahoo/yfinance）。结果由 `fetch_calendar.py` 合并进 `calendar.json`（无需再在 `calendar_seed.json` 手写财报）。
 
-扩展覆盖范围时，只需编辑 `earnings_watchlist.json` 中的 `symbols` 列表。
+扩展覆盖范围时，编辑 `earnings_watchlist.json` 的 `symbols` 与 `names_zh`。
 
 ### 添加币圈事件
 

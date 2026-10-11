@@ -116,6 +116,14 @@ const TYPES = {
       {k:"amount",l:"数量",t:"amt"},{k:"usd_value",l:"价值",t:"usd"},
       {k:"pre7d_pct",l:"前7天",t:"pct"},{k:"post_pct",l:"事件后",t:"pct"},{k:"btc_post_pct",l:"BTC",t:"pct"},
       {k:"_rel",l:"相对BTC",t:"pp",sort:1},{k:"source_url",l:"来源",t:"link"}
+    ]},
+  spot_listing: { label: "上交易所", file: "spot_listing.json", sym: "ticker", time: "list_utc8",
+    cols: [
+      {k:"ticker",l:"代币",t:"s"},{k:"exchange",l:"交易所",t:"s"},{k:"region",l:"地区",t:"s"},
+      {k:"pairs",l:"交易对/市场",t:"s"},{k:"list_utc8",l:"上线时间",t:"time",alt:"list_time_utc8"},
+      {k:"pre7d_change_pct",l:"前7天",t:"pct"},
+      {k:"post_listing_change_pct",l:"事件后",t:"pct"},{k:"btc_post_change_pct",l:"BTC",t:"pct"},
+      {k:"relative_vs_btc_post_pp",l:"相对BTC",t:"pp",sort:1},{k:"source_url",l:"来源",t:"link"}
     ]}
 };
 
@@ -129,7 +137,7 @@ function fld(e,k,alt){ const f=e.fields||{}; return f[k]!=null?f[k]:(alt?f[alt]:
 function relBtc(e){
   const f=e.fields||{};
   if(f.relative_vs_btc_post_pp!=null) return f.relative_vs_btc_post_pp;
-  const p=f.post_pct!=null?f.post_pct:f.post_unlock_change_pct!=null?f.post_unlock_change_pct:f.post_delist_change_pct;
+  const p=f.post_pct!=null?f.post_pct:f.post_unlock_change_pct!=null?f.post_unlock_change_pct:f.post_listing_change_pct!=null?f.post_listing_change_pct:f.post_delist_change_pct;
   const b=f.btc_post_pct!=null?f.btc_post_pct:f.btc_post_change_pct;
   return (p!=null&&b!=null)?p-b:null;
 }

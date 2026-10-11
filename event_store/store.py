@@ -66,6 +66,18 @@ TYPE_CONFIG = {
         "post_field": "post_pct",
         "pre7_field": "pre7d_pct",
     },
+    "spot_listing": {
+        "file": "spot_listing.json",
+        "main_csv": "spot_listings.csv",
+        "time_field": "list_utc8",
+        "ticker_field": "ticker",
+        "source_field": "exchange",
+        "fallback_source": "exchange",
+        "pre7d_link": ("ticker", "list_utc8"),
+        "rel_btc_field": "relative_vs_btc_post_pp",
+        "post_field": "post_listing_change_pct",
+        "pre7_field": "pre7d_change_pct",
+    },
 }
 
 MUTABLE_KEYS = {
@@ -364,6 +376,9 @@ def normalize_fields(etype, row):
         row.setdefault("launch_utc8", row.get("launch_time_utc8"))
         row.setdefault("announce_utc8", row.get("announce_time_utc8"))
         row.setdefault("token", row.get("symbol"))
+    elif etype == "spot_listing":
+        row.setdefault("list_utc8", row.get("list_time_utc8"))
+        row.setdefault("announce_utc8", row.get("announce_time_utc8"))
     elif etype == "unlock":
         row.setdefault("amount", row.get("unlock_amount"))
         row.setdefault("value_usd_at_unlock", row.get("computed_value_usd"))
@@ -382,6 +397,8 @@ def ingest_tracker_dir(etype, out_dir, now_ts):
             r["launch_utc8"] = r["launch_time_utc8"]
         if etype == "delist" and r.get("delist_time_utc8") and not r.get("delist_utc8"):
             r["delist_utc8"] = r["delist_time_utc8"]
+        if etype == "spot_listing" and r.get("list_time_utc8") and not r.get("list_utc8"):
+            r["list_utc8"] = r["list_time_utc8"]
     pre7_map = build_pre7d_map(pre7_all, cfg["pre7d_link"])
     events = []
     for row in rows:
