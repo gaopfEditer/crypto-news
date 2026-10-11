@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -115,12 +116,39 @@ def bithumb_pub_ts(s):
     raise ValueError(s)
 
 
+def event_ded_key(e):
+    return (e.get("exchange", "").lower(), e.get("symbol"), e["list_ts"] // H if e.get("list_ts") else None)
+
+
+def pin_extra_for_analyze(analyze, events, lo, hi, now_ts):
+    """kr_listings_seed / --extra-events 条目始终进入 spot_listings 输出，不受 --max-analyze 挤掉。"""
+    chosen, seen = list(analyze), {event_ded_key(e) for e in analyze}
+    for e in events:
+        if "extra" not in (e.get("flags") or []):
+            continue
+        if not e.get("list_ts") or not (lo <= e["list_ts"] <= hi and e["list_ts"] <= now_ts):
+            continue
+        k = event_ded_key(e)
+        if k in seen:
+            continue
+        seen.add(k)
+        chosen.append(e)
+    return chosen
+
+
+def http_err_code(ex):
+    if isinstance(ex, urllib.error.HTTPError):
+        return ex.code
+    m = re.search(r"\b403\b", str(ex))
+    return 403 if m else None
+
+
 def select_for_analyze(events, lo, hi, now_ts, cap):
     pool = [e for e in events if e.get("list_ts") and lo <= e["list_ts"] <= hi and e["list_ts"] <= now_ts]
     chosen, seen = [], set()
 
     def ded_key(e):
-        return (e.get("exchange", "").lower(), e.get("symbol"), e["list_ts"] // H)
+        return event_ded_key(e)
 
     for ex in ANALYZE_EX_PRIORITY:
         for e in sorted((x for x in pool if x.get("exchange") == ex), key=lambda x: x["list_ts"], reverse=True):
@@ -173,10 +201,18 @@ def _upbit_parse_body(out, body, rel, title, ann_id, url):
             log(f"upbit: cannot parse {title}")
 
 
-def src_upbit(http, lo, hi):
+def src_upbit(http, lo, hi, source_notes=None):
     out, items = [], []
     page_errors = []
+    upbit_forbidden = False
+
+    def note(msg):
+        if source_notes is not None:
+            source_notes.append(msg)
+
     for page in range(1, 10):
+        if upbit_forbidden:
+            break
         try:
             d = http.get(
                 f"https://api-manager.upbit.com/api/v1/announcements?os=web&page={page}&per_page=20&category=trade",
@@ -187,6 +223,9 @@ def src_upbit(http, lo, hi):
         except Exception as ex:
             page_errors.append(f"page{page}: {ex}")
             log(f"upbit list page {page}: {ex}")
+            if http_err_code(ex) == 403:
+                upbit_forbidden = True
+                note("upbit: HTTP 403 on announcements list (CI/datacenter IP); using title fallback / seed only")
             break
         if not lst:
             break
@@ -221,9 +260,12 @@ def src_upbit(http, lo, hi):
     detail_budget = max(48, len(in_window) + 8)
 
     def handle(sort_ts, rel, title, ann_id, spend_budget):
-        nonlocal detail_budget
+        nonlocal detail_budget, upbit_forbidden
         url = f"https://upbit.com/service_center/notice?id={ann_id}"
         must_detail = sort_ts >= lo
+        if upbit_forbidden:
+            _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_api_forbidden")
+            return
         if spend_budget and detail_budget <= 0 and not must_detail:
             _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_budget")
             return
@@ -242,6 +284,9 @@ def src_upbit(http, lo, hi):
         except Exception as ex:
             page_errors.append(f"ann{ann_id}: {ex}")
             log(f"upbit detail {ann_id}: {ex}")
+            if http_err_code(ex) == 403:
+                upbit_forbidden = True
+                note("upbit: HTTP 403 on announcement detail; skipping further Upbit API detail calls")
             _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_no_body")
             return
         _upbit_parse_body(out, body, rel, title, ann_id, url)
@@ -250,8 +295,11 @@ def src_upbit(http, lo, hi):
         handle(*row, True)
     for row in older:
         handle(*row, True)
+    if upbit_forbidden:
+        note(f"upbit: api_forbidden=true; parsed_from_api={len(out)} list_errors={len(page_errors)}")
     if not out and page_errors and not items:
-        raise RuntimeError("; ".join(page_errors[:3]))
+        note("upbit: no list data: " + "; ".join(page_errors[:5]))
+        log("upbit: no announcements from API (" + "; ".join(page_errors[:3]) + ")")
     return out
 
 
@@ -489,11 +537,22 @@ def main(argv=None):
     for ex in [x.strip().lower() for x in a.exchanges.split(",") if x.strip()]:
         try:
             if ex in fns:
-                evs = fns[ex](http, lo, now_ts)
+                src_notes = []
+                if ex == "upbit":
+                    evs = fns[ex](http, lo, now_ts, src_notes)
+                else:
+                    evs = fns[ex](http, lo, now_ts)
+                src_meta = {"events_parsed": len(evs)}
+                if ex == "upbit" and src_notes:
+                    src_meta["notes"] = src_notes
+                    meta["errors"].extend(src_notes)
+                    if any("403" in n for n in src_notes):
+                        src_meta["api_forbidden"] = True
             else:
                 meta["errors"].append(f"unknown exchange {ex}")
                 evs = []
-            meta["sources"][ex] = {"events_parsed": len(evs)}
+                src_meta = {"events_parsed": 0}
+            meta["sources"][ex] = src_meta
             events += evs
         except Exception as ex2:
             meta["errors"].append(f"{ex}: {type(ex2).__name__}: {ex2}")
@@ -513,6 +572,7 @@ def main(argv=None):
     events = list(ded.values())
     analyze_all = [e for e in events if e["list_ts"] and lo <= e["list_ts"] <= hi and e["list_ts"] <= now_ts]
     analyze = select_for_analyze(events, lo, hi, now_ts, max(1, a.max_analyze))
+    analyze = pin_extra_for_analyze(analyze, events, lo, hi, now_ts)
     if len(analyze_all) > len(analyze):
         meta["errors"].append(
             f"analyze capped at {a.max_analyze} (parsed in-window {len(analyze_all)}, selected {len(analyze)})"

@@ -19,7 +19,7 @@
 | Binance | CMS `catalogId=48` 标题含 *Will List*（排除合约/杠杆/Alpha） |
 | 补充 | `kr_listings_seed.csv`（默认自动加载）或 `--extra-events` CSV |
 
-`--max-analyze` 默认 80，但 **Upbit/Bithumb 在窗口内的条目会优先占满配额**，避免 OKX 挤掉韩国上币。
+`--max-analyze` 默认 80，但 **Upbit/Bithumb 在窗口内的条目会优先占满配额**，避免 OKX 挤掉韩国上币。`kr_listings_seed.csv` / `--extra-events` 行 **不计入配额**，始终写入 `spot_listings.csv`（GitHub Actions 对 `api-manager.upbit.com` 常 403 时靠 seed 兜底）。
 
 ## 运行
 
