@@ -78,7 +78,22 @@ def merge_run(etype, out_dir, events_dir, now_ts=None):
     for ev in future + side:
         if ev["id"] not in have:
             incoming.append(ev)
+    x_syms = set()
+    if etype == "spot_listing":
+        from spot_okx_filter import is_okx_xstock_field, load_okx_xstock_symbols, prune_spot_listing_lib  # noqa: E402
+
+        inst_cache = os.path.normpath(os.path.join(out_dir, "..", "..", "cache", "raw", "okx_spot_instruments.json"))
+        x_syms = load_okx_xstock_symbols(inst_cache)
+        incoming = [
+            e
+            for e in incoming
+            if not is_okx_xstock_field((e.get("fields") or {}).get("exchange"), (e.get("fields") or {}).get("ticker"), x_syms)
+        ]
     merge_libraries(lib, incoming, now_ts, etype)
+    if etype == "spot_listing":
+        removed = prune_spot_listing_lib(lib, x_syms)
+        if removed:
+            print(f"pruned OKX xStocks from spot_listing lib: {removed}", file=sys.stderr)
     from run_health import parse_run_meta, update_source_health  # noqa: E402
     run_info = parse_run_meta(etype, out_dir)
     run_info["errors"] = run_info.get("errors") or (run_info.get("meta") or {}).get("errors") or []

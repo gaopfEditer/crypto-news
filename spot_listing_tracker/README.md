@@ -15,7 +15,7 @@
 | Upbit | `api-manager.upbit.com` 交易类公告（신규 거래지원 / 디지털 자산 추가）；`listed_at` 新→旧拉详情 |
 | Bithumb | 官方 Open API [`GET /v1/notices?count=20`](https://apidocs.bithumb.com/reference/공지사항-조회)（`categories` 含 마켓 추가）；仅最近 20 条公告 |
 | Bitget | `annType=coin_listings` 且 `annSubType=spot` |
-| OKX | `GET /api/v5/public/instruments?instType=SPOT` 的 `listTime` |
+| OKX | `GET /api/v5/public/instruments?instType=SPOT` 的 `listTime`；**排除 `instCategory=3`（统一代币化股票 / xStocks）** |
 | Binance | CMS `catalogId=48` 标题含 *Will List*（排除合约/杠杆/Alpha） |
 | 补充 | `kr_listings_seed.csv`（默认自动加载）或 `--extra-events` CSV |
 
