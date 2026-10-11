@@ -49,6 +49,8 @@ def parse_run_meta(etype, out_dir):
             for ex in EXCHANGE_KEYS:
                 if err_l.startswith(ex + ":") or err_l.startswith(ex + " "):
                     failed.add(ex)
+                if ex == "bithumb" and "bithumb" in err_l[:50]:
+                    failed.add(ex)
             if "gate" in err_l and "403" in err_l:
                 failed.add("gate")
             if "bithumb" in err_l:

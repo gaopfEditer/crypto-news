@@ -39,6 +39,7 @@ class Http:
         "api.coingecko.com": 6.5,
         "api.coinmarketcap.com": 1.0,
         "api-manager.upbit.com": 1.25,
+        "api.bithumb.com": 1.05,
     }
 
     def __init__(self, cache_dir, refresh=False):

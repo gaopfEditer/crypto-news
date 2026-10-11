@@ -6,7 +6,7 @@
   bitget  : api/v2/public/annoucements coin_listings (annSubType=spot)
   okx     : /api/v5/public/instruments?instType=SPOT (listTime)
   binance : CMS catalogId=48 标题含 Binance Will List（排除合约/杠杆/Alpha）
-  bithumb : 无稳定公开 API → --extra-events 或 fixtures
+  bithumb : api.bithumb.com/v1/notices（最新 20 条，마켓 추가）+ --extra-events 补充更早公告
 """
 import argparse
 import csv
@@ -37,6 +37,10 @@ UPBIT_ROW = re.compile(
     re.I,
 )
 QUOTES = ("USDT", "USDC", "KRW", "BTC", "ETH", "BRL", "TRY")
+# analyze 配额：韩国所公告优先，避免 OKX 全量挤掉 Upbit/Bithumb（合并库会保留旧条，易出现「有 POD 无 KAIA」）
+ANALYZE_EX_PRIORITY = ("Upbit", "Bithumb", "Binance", "Bitget", "OKX")
+BITHUMB_LIST = re.compile(r"마켓\s*추가|원화\s*마켓\s*추가")
+BITHUMB_SKIP = re.compile(r"거래지원\s*종료|거래유의|입출금.*중지|입출금.*중단|출금.*중단|명칭\s*변경")
 
 
 def upbit_iso_ts(s):
@@ -93,8 +97,47 @@ def parse_korean_list_time(text, ref_ts):
 
 
 def sym_from_title(title):
-    m = re.search(r"\(([A-Z0-9]{1,15})\)", title or "")
-    return m.group(1) if m else None
+    syms = syms_from_title(title)
+    return syms[0] if syms else None
+
+
+def syms_from_title(title):
+    return [m.group(1).upper() for m in re.finditer(r"\(([A-Z0-9]{1,15})\)", title or "")]
+
+
+def bithumb_pub_ts(s):
+    s = (s or "").strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return int(dt.datetime.strptime(s[:19], fmt).replace(tzinfo=KST).timestamp())
+        except ValueError:
+            continue
+    raise ValueError(s)
+
+
+def select_for_analyze(events, lo, hi, now_ts, cap):
+    pool = [e for e in events if e.get("list_ts") and lo <= e["list_ts"] <= hi and e["list_ts"] <= now_ts]
+    chosen, seen = [], set()
+
+    def ded_key(e):
+        return (e.get("exchange", "").lower(), e.get("symbol"), e["list_ts"] // H)
+
+    for ex in ANALYZE_EX_PRIORITY:
+        for e in sorted((x for x in pool if x.get("exchange") == ex), key=lambda x: x["list_ts"], reverse=True):
+            k = ded_key(e)
+            if k in seen:
+                continue
+            seen.add(k)
+            chosen.append(e)
+    for e in sorted(pool, key=lambda x: x["list_ts"], reverse=True):
+        k = ded_key(e)
+        if k in seen:
+            continue
+        if len(chosen) >= cap:
+            break
+        seen.add(k)
+        chosen.append(e)
+    return chosen[:cap]
 
 
 def _upbit_list_time_from_body(body, sym, ref_ts):
@@ -105,6 +148,29 @@ def _upbit_list_time_from_body(body, sym, ref_ts):
     )
     list_txt = tcell.group(4) if tcell else body
     return parse_korean_list_time(list_txt, ref_ts) or ref_ts
+
+
+def _upbit_emit_title_fallback(out, title, rel, ann_id, list_src):
+    url = f"https://upbit.com/service_center/notice?id={ann_id}"
+    for sym in syms_from_title(title):
+        out.append(mk("Upbit", sym, rel, rel, url=url, title=title, list_src=list_src))
+
+
+def _upbit_parse_body(out, body, rel, title, ann_id, url):
+    found = False
+    for nm, sym, markets in UPBIT_ROW.findall(body):
+        sym = sym.upper()
+        lt = _upbit_list_time_from_body(body, sym, rel)
+        out.append(
+            mk("Upbit", sym, lt, rel, name=nm.strip(), pairs=markets.strip(), url=url, title=title, list_src="announcement")
+        )
+        found = True
+    if not found:
+        for sym in syms_from_title(title):
+            lt = _upbit_list_time_from_body(body, sym, rel)
+            out.append(mk("Upbit", sym, lt, rel, url=url, title=title, list_src="title_fallback"))
+        if not syms_from_title(title):
+            log(f"upbit: cannot parse {title}")
 
 
 def src_upbit(http, lo, hi):
@@ -136,30 +202,36 @@ def src_upbit(http, lo, hi):
     for a in items:
         title = a.get("title") or ""
         try:
+            sort_ts = upbit_iso_ts(a.get("listed_at") or a.get("first_listed_at"))
             rel = upbit_iso_ts(a.get("first_listed_at") or a.get("listed_at"))
         except (ValueError, TypeError, KeyError):
             log(f"upbit: skip bad time id={a.get('id')} title={title[:40]}")
             continue
-        if rel < lo - LOOKBACK_ANN or rel > hi:
+        if sort_ts < lo - LOOKBACK_ANN or sort_ts > hi:
             continue
         if not UPBIT_LIST.search(title) or UPBIT_SKIP.search(title):
             continue
         ann_id = a.get("id")
         if not ann_id:
             continue
-        pending.append((rel, a, title, ann_id))
+        pending.append((sort_ts, rel, title, ann_id))
     pending.sort(key=lambda x: x[0], reverse=True)
-    detail_budget = 36
-    for rel, a, title, ann_id in pending:
+    in_window = [p for p in pending if p[0] >= lo]
+    older = [p for p in pending if p[0] < lo]
+    detail_budget = max(48, len(in_window) + 8)
+
+    def handle(sort_ts, rel, title, ann_id, spend_budget):
+        nonlocal detail_budget
         url = f"https://upbit.com/service_center/notice?id={ann_id}"
-        if detail_budget <= 0 and rel < lo:
-            sym = sym_from_title(title)
-            if sym:
-                out.append(mk("Upbit", sym, rel, rel, url=url, title=title, list_src="title_fallback_budget"))
-            continue
-        if detail_budget <= 0:
-            continue
-        detail_budget -= 1
+        must_detail = sort_ts >= lo
+        if spend_budget and detail_budget <= 0 and not must_detail:
+            _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_budget")
+            return
+        if spend_budget and detail_budget <= 0 and must_detail:
+            _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_budget")
+            return
+        if spend_budget:
+            detail_budget -= 1
         try:
             det = http.get(
                 f"https://api-manager.upbit.com/api/v1/announcements/{ann_id}",
@@ -170,37 +242,64 @@ def src_upbit(http, lo, hi):
         except Exception as ex:
             page_errors.append(f"ann{ann_id}: {ex}")
             log(f"upbit detail {ann_id}: {ex}")
-            sym = sym_from_title(title)
-            if sym:
-                out.append(
-                    mk(
-                        "Upbit",
-                        sym,
-                        rel,
-                        rel,
-                        url=f"https://upbit.com/service_center/notice?id={ann_id}",
-                        title=title,
-                        list_src="title_fallback_no_body",
-                    )
-                )
-            continue
-        found = False
-        for nm, sym, markets in UPBIT_ROW.findall(body):
-            sym = sym.upper()
-            lt = _upbit_list_time_from_body(body, sym, rel)
-            out.append(
-                mk("Upbit", sym, lt, rel, name=nm.strip(), pairs=markets.strip(), url=url, title=title, list_src="announcement")
-            )
-            found = True
-        if not found:
-            sym = sym_from_title(title)
-            if sym:
-                lt = _upbit_list_time_from_body(body, sym, rel)
-                out.append(mk("Upbit", sym, lt, rel, url=url, title=title, list_src="title_fallback"))
-            else:
-                log(f"upbit: cannot parse {title}")
+            _upbit_emit_title_fallback(out, title, rel, ann_id, "title_fallback_no_body")
+            return
+        _upbit_parse_body(out, body, rel, title, ann_id, url)
+
+    for row in in_window:
+        handle(*row, True)
+    for row in older:
+        handle(*row, True)
     if not out and page_errors and not items:
         raise RuntimeError("; ".join(page_errors[:3]))
+    return out
+
+
+def src_bithumb(http, lo, hi):
+    """Bithumb Open API v1 /notices（published_at 降序，单次最多 20 条）。来源：apidocs.bithumb.com"""
+    out = []
+    rows = http.get("https://api.bithumb.com/v1/notices?count=20", "bithumb_notices_20.json", ttl=30 * 60)
+    if not isinstance(rows, list):
+        raise RuntimeError(f"bithumb notices unexpected type {type(rows)}")
+    seen_notice = set()
+    for row in rows:
+        title = row.get("title") or ""
+        cats = row.get("categories") or []
+        if not any("마켓" in c and "추가" in c for c in cats):
+            continue
+        if BITHUMB_SKIP.search(title):
+            continue
+        try:
+            rel = bithumb_pub_ts(row.get("published_at"))
+        except ValueError:
+            log(f"bithumb: bad published_at {row.get('published_at')}")
+            continue
+        if rel < lo - LOOKBACK_ANN or rel > hi:
+            continue
+        url = row.get("pc_url") or ""
+        m = re.search(r"/notice/(\d+)", url)
+        notice_key = m.group(1) if m else url
+        if notice_key in seen_notice:
+            continue
+        seen_notice.add(notice_key)
+        syms = syms_from_title(title)
+        if not syms:
+            log(f"bithumb: no ticker in {title[:60]}")
+            continue
+        pairs = "KRW" if ("원화" in title or "KRW" in title.upper()) else "KRW"
+        for sym in syms:
+            out.append(
+                mk(
+                    "Bithumb",
+                    sym,
+                    rel,
+                    rel,
+                    pairs=pairs,
+                    url=url,
+                    title=title,
+                    list_src="bithumb_v1_notices",
+                )
+            )
     return out
 
 
@@ -352,7 +451,7 @@ def parse_args(argv=None):
     ap.add_argument("--start", help="窗口开始 YYYY-MM-DD (UTC+8)")
     ap.add_argument("--end", help="窗口结束 YYYY-MM-DD (UTC+8)")
     ap.add_argument("--now", help="固定 now (UTC+8)")
-    ap.add_argument("--exchanges", default="upbit,bitget,binance,okx", help=",".join(ALL_EX))
+    ap.add_argument("--exchanges", default="upbit,bithumb,bitget,binance,okx", help=",".join(ALL_EX))
     ap.add_argument("--max-analyze", type=int, default=80, help="窗口内最多做价格分析条数（防 OKX 全量过慢）")
     ap.add_argument("--extra-events", help="补充 CSV: ticker,exchange,list_time_utc8,...")
     ap.add_argument("--id-map", action="append", default=[])
@@ -385,14 +484,11 @@ def main(argv=None):
         "errors": [],
         "unmapped": [],
     }
-    fns = {"upbit": src_upbit, "bitget": src_bitget, "okx": src_okx, "binance": src_binance}
+    fns = {"upbit": src_upbit, "bithumb": src_bithumb, "bitget": src_bitget, "okx": src_okx, "binance": src_binance}
     events = []
     for ex in [x.strip().lower() for x in a.exchanges.split(",") if x.strip()]:
         try:
-            if ex == "bithumb":
-                meta["errors"].append("Bithumb: 无稳定公告 API，请用 --extra-events 补充")
-                evs = []
-            elif ex in fns:
+            if ex in fns:
                 evs = fns[ex](http, lo, now_ts)
             else:
                 meta["errors"].append(f"unknown exchange {ex}")
@@ -402,9 +498,13 @@ def main(argv=None):
         except Exception as ex2:
             meta["errors"].append(f"{ex}: {type(ex2).__name__}: {ex2}")
             log(f"{ex} failed: {ex2}")
-    if a.extra_events:
-        events += src_extra(a.extra_events)
-        meta["sources"]["extra"] = {"file": a.extra_events, "events_parsed": len(events)}
+    seed = os.path.join(HERE, "kr_listings_seed.csv")
+    extra_paths = [p for p in [a.extra_events, seed if os.path.isfile(seed) else None] if p]
+    for path in extra_paths:
+        extra_evs = src_extra(path)
+        events += extra_evs
+        meta["sources"]["extra"] = meta["sources"].get("extra") or {}
+        meta["sources"]["extra"][os.path.basename(path)] = len(extra_evs)
 
     ded = {}
     for e in sorted(events, key=lambda x: (0 if "extra" in (x.get("flags") or []) else 1, x.get("ann_ts") or 0)):
@@ -412,10 +512,13 @@ def main(argv=None):
         ded[k] = e
     events = list(ded.values())
     analyze_all = [e for e in events if e["list_ts"] and lo <= e["list_ts"] <= hi and e["list_ts"] <= now_ts]
-    analyze_all.sort(key=lambda x: x["list_ts"], reverse=True)
-    analyze = analyze_all[: max(1, a.max_analyze)]
+    analyze = select_for_analyze(events, lo, hi, now_ts, max(1, a.max_analyze))
     if len(analyze_all) > len(analyze):
-        meta["errors"].append(f"analyze capped at {a.max_analyze} (parsed in-window {len(analyze_all)})")
+        meta["errors"].append(
+            f"analyze capped at {a.max_analyze} (parsed in-window {len(analyze_all)}, selected {len(analyze)})"
+        )
+    kr = [e for e in analyze if e.get("exchange") in ("Upbit", "Bithumb")]
+    meta["counts_kr_selected"] = len(kr)
     upcoming = [
         e
         for e in events
