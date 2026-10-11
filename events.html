@@ -215,14 +215,47 @@ function isFutureEv(e){
   return !!(e.is_future||(e.event_ts>now&&(e.status==="scheduled"||!e.status)));
 }
 
-async function tryJson(u){ try{ const r=await fetch(u); if(!r.ok)return null; return await r.json(); }catch(e){return null;} }
-async function loadLib(type){
-  const bust=Math.floor(Date.now()/30000);
+async function tryJson(u, opts){
+  try{
+    const r=await fetch(u, opts);
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+async function loadLib(type, bust){
+  const b=bust!=null?bust:Math.floor(Date.now()/30000);
   const path="events/"+TYPES[type].file;
-  const [loc,rem]=await Promise.all([tryJson("./"+path+"?_="+bust), tryJson(RAW+"/"+path+"?_="+bust)]);
+  const cacheBust={ cache:"no-store" };
+  const [loc,rem]=await Promise.all([
+    tryJson("./"+path+"?_="+b, cacheBust),
+    tryJson(RAW+"/"+path+"?_="+b, cacheBust)
+  ]);
   if(!loc&&!rem) return null;
   const d=(rem&&(!loc||(rem.updated||0)>=(loc.updated||0)))?rem:loc;
   return d;
+}
+
+async function loadEventIndex(bust){
+  const b=bust!=null?bust:Date.now();
+  const cacheBust={ cache:"no-store" };
+  return await tryJson("./events/index.json?_="+b, cacheBust)
+    || await tryJson(RAW+"/events/index.json?_="+b, cacheBust);
+}
+
+function indexNeedsNewerHtml(idx){
+  if(!idx || !idx.types) return false;
+  return Object.keys(idx.types).some(t => !(t in TYPES));
+}
+
+async function reloadEventData(cachedIdx){
+  const bust=Date.now();
+  const idx=cachedIdx!=null?cachedIdx:await loadEventIndex(bust);
+  const fromIndex=idx&&idx.types?Object.keys(idx.types).filter(t=>TYPES[t]):[];
+  const toLoad=[...new Set([...fromIndex, ...Object.keys(TYPES)])];
+  await Promise.all(toLoad.map(async t=>{ libs[t]=await loadLib(t, bust); }));
+  if(!TYPES[curType]) curType="unlock";
+  $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
+  renderAll();
 }
 
 function parseParams(){
@@ -421,8 +454,10 @@ function renderAll(){
   renderTabs(); renderStats(); renderObs(); renderMain(); renderDaily(); syncUrl();
 }
 
-async function init(){
-  parseParams();
+let uiBound=false;
+function bindUiOnce(){
+  if(uiBound) return;
+  uiBound=true;
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#rangeSeg button").forEach(x=>x.classList.remove("on"));
     b.classList.add("on"); rangeMode=b.dataset.r; customFrom=customTo=null; $("fromD").value=""; $("toD").value=""; resetTimeSort(); renderAll();
@@ -430,12 +465,32 @@ async function init(){
   $("fromD").onchange=$("toD").onchange=()=>{ rangeMode="custom"; resetTimeSort(); renderAll(); };
   $("showFuture").onchange=()=>{ showFuture=$("showFuture").checked; resetTimeSort(); renderAll(); };
   $("showCancelled").onchange=()=>{ showCancelled=$("showCancelled").checked; resetTimeSort(); renderAll(); };
-  for(const t of Object.keys(TYPES)) libs[t]=await loadLib(t);
-  $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
-  resetTimeSort();
-  renderAll();
 }
-init();
+
+async function boot(){
+  parseParams();
+  bindUiOnce();
+  resetTimeSort();
+  const idx=await loadEventIndex(Date.now());
+  if(indexNeedsNewerHtml(idx)){
+    location.reload();
+    return;
+  }
+  await reloadEventData(idx);
+}
+
+window.addEventListener("pageshow", async ev=>{
+  if(!ev.persisted) return;
+  const idx=await loadEventIndex(Date.now());
+  if(indexNeedsNewerHtml(idx)){
+    location.reload();
+    return;
+  }
+  parseParams();
+  await reloadEventData(idx);
+});
+
+boot();
 </script>
 </body>
 </html>
