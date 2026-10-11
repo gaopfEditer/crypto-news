@@ -204,6 +204,37 @@ def ingest_future_perp(out_dir, now_ts, horizon=14 * DAY):
     return events
 
 
+def ingest_future_spot(out_dir, now_ts, horizon=14 * DAY):
+    hi = now_ts + horizon
+    events = []
+    for row in read_csv_rows(os.path.join(out_dir, "other_events.csv")):
+        if (row.get("status") or "").lower() not in ("scheduled", "待执行"):
+            continue
+        ts = ts_from_utc8(row.get("list_time_utc8"))
+        if not ts or ts <= now_ts or ts > hi:
+            continue
+        fields = normalize_fields("spot_listing", {
+            "ticker": row.get("ticker"),
+            "exchange": row.get("exchange"),
+            "region": row.get("region"),
+            "list_utc8": row.get("list_time_utc8"),
+            "list_time_utc8": row.get("list_time_utc8"),
+            "announce_utc8": row.get("announce_time_utc8"),
+            "announce_time_utc8": row.get("announce_time_utc8"),
+            "pairs": row.get("pairs"),
+            "flags": row.get("flags"),
+            "source_url": row.get("source_url"),
+            "status": "scheduled",
+            "days_until": _days_until(ts, now_ts),
+        })
+        ev = row_to_event("spot_listing", fields, [], now_ts, TYPE_CONFIG["spot_listing"])
+        if ev:
+            ev["status"] = "scheduled"
+            ev["data_source"] = infer_data_source("spot_listing", fields, TYPE_CONFIG["spot_listing"])
+            events.append(ev)
+    return events
+
+
 def ingest_future_burn(out_dir, now_ts, horizon=14 * DAY):
     hi = now_ts + horizon
     events = []
@@ -243,6 +274,8 @@ def collect_future(etype, out_dir, now_ts, horizon_days=14):
         return ingest_future_perp(out_dir, now_ts, horizon)
     if etype == "burn":
         return ingest_future_burn(out_dir, now_ts, horizon)
+    if etype == "spot_listing":
+        return ingest_future_spot(out_dir, now_ts, horizon)
     return []
 
 

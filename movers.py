@@ -27,6 +27,7 @@ EVENT_FILES = {
     "delist": ("delist.json", "下架", lambda f: f.get("ticker")),
     "perp_listing": ("perp_listing.json", "永续合约上线", lambda f: f.get("token")),
     "burn": ("burn.json", "销毁/回购", lambda f: f.get("token")),
+    "spot_listing": ("spot_listing.json", "上交易所", lambda f: f.get("ticker")),
 }
 EVENT_WINDOW = 7 * 86400
 NEWS_WINDOW = 48 * 3600
@@ -324,6 +325,10 @@ def event_factor_text(ev):
         extra = f"，{f.get('exchange')}"
     if ev["type"] == "burn" and f.get("amount"):
         extra = f"，数量 {f.get('amount')}"
+    if ev["type"] == "spot_listing" and f.get("exchange"):
+        extra = f"，{f.get('exchange')}"
+        if f.get("pairs"):
+            extra += f" ({f.get('pairs')})"
     return f"事件库：{label}{fut} {when}{extra}"
 
 

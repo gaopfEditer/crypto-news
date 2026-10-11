@@ -31,6 +31,7 @@ FIXTURE_GLOBS = {
     "delist": ["delistings_*.csv"],
     "perp_listing": ["perp_listings_*.csv", "listings_*.csv"],
     "burn": ["burns_*.csv"],
+    "spot_listing": ["spot_listings_*.csv"],
 }
 
 

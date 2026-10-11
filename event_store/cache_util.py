@@ -72,12 +72,14 @@ def main():
     ap.add_argument("--delist-cache", default="delist_tracker/cache")
     ap.add_argument("--perp-cache", default="futures_listing_tracker/cache")
     ap.add_argument("--burn-cache", default="burn_tracker/cache")
+    ap.add_argument("--spot-cache", default="spot_listing_tracker/cache")
     args = ap.parse_args()
     pairs = [
         ("unlock", args.unlock_cache),
         ("delist", args.delist_cache),
         ("perp_listing", args.perp_cache),
         ("burn", args.burn_cache),
+        ("spot_listing", args.spot_cache),
     ]
     if args.action == "restore":
         restore(args.publish_dir, pairs)
