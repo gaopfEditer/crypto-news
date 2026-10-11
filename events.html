@@ -13,8 +13,14 @@ a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
 .top{position:sticky;top:0;z-index:6;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px}
 .brand{font-weight:700;color:var(--warn);font-family:Menlo,monospace}
-.nav a{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px}
-.nav a.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.site-nav{display:flex;gap:4px;margin-left:12px;align-items:center;flex-wrap:wrap}
+.nav-link{padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none}
+.nav-link:hover{border-color:var(--acc);color:var(--acc)}
+.nav-link.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.seg.site-main-tabs{box-shadow:0 2px 12px rgba(0,0,0,.28);border-radius:8px;overflow:hidden}
+.seg.site-main-tabs a{display:inline-block;padding:6px 14px;font-size:12px;font-weight:600;color:var(--dim);background:var(--panel2);text-decoration:none;border-right:1px solid var(--line)}
+.seg.site-main-tabs a:last-child{border-right:none}
+.seg.site-main-tabs a:hover{color:var(--acc)}
 .tabs{display:flex;flex-wrap:wrap;gap:4px}
 .tab{padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);cursor:pointer;font-size:12px}
 .tab.on{border-color:var(--acc);background:#1f3350;color:#fff}
@@ -48,10 +54,13 @@ label.future{font-size:12px;color:var(--dim)}
 <div class="top">
   <div class="bar">
     <span class="brand">◆ CRYPTO NEWS WATCH</span>
-    <div class="nav">
-      <a href="index.html">新闻</a>
-      <a href="calendar.html">日历</a>
-      <a href="events.html" class="active">事件追踪</a>
+    <div class="site-nav">
+      <span class="seg site-main-tabs" title="首页视图">
+        <a href="index.html">新闻流</a>
+        <a href="index.html?view=movers">行情榜</a>
+      </span>
+      <a href="calendar.html" class="nav-link">日历</a>
+      <a href="events.html" class="nav-link active">事件追踪</a>
     </div>
     <span class="sp"></span>
     <span class="poll" id="poll">加载中…</span>
@@ -206,14 +215,47 @@ function isFutureEv(e){
   return !!(e.is_future||(e.event_ts>now&&(e.status==="scheduled"||!e.status)));
 }
 
-async function tryJson(u){ try{ const r=await fetch(u); if(!r.ok)return null; return await r.json(); }catch(e){return null;} }
-async function loadLib(type){
-  const bust=Math.floor(Date.now()/30000);
+async function tryJson(u, opts){
+  try{
+    const r=await fetch(u, opts);
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+async function loadLib(type, bust){
+  const b=bust!=null?bust:Math.floor(Date.now()/30000);
   const path="events/"+TYPES[type].file;
-  const [loc,rem]=await Promise.all([tryJson("./"+path+"?_="+bust), tryJson(RAW+"/"+path+"?_="+bust)]);
+  const cacheBust={ cache:"no-store" };
+  const [loc,rem]=await Promise.all([
+    tryJson("./"+path+"?_="+b, cacheBust),
+    tryJson(RAW+"/"+path+"?_="+b, cacheBust)
+  ]);
   if(!loc&&!rem) return null;
   const d=(rem&&(!loc||(rem.updated||0)>=(loc.updated||0)))?rem:loc;
   return d;
+}
+
+async function loadEventIndex(bust){
+  const b=bust!=null?bust:Date.now();
+  const cacheBust={ cache:"no-store" };
+  return await tryJson("./events/index.json?_="+b, cacheBust)
+    || await tryJson(RAW+"/events/index.json?_="+b, cacheBust);
+}
+
+function indexNeedsNewerHtml(idx){
+  if(!idx || !idx.types) return false;
+  return Object.keys(idx.types).some(t => !(t in TYPES));
+}
+
+async function reloadEventData(cachedIdx){
+  const bust=Date.now();
+  const idx=cachedIdx!=null?cachedIdx:await loadEventIndex(bust);
+  const fromIndex=idx&&idx.types?Object.keys(idx.types).filter(t=>TYPES[t]):[];
+  const toLoad=[...new Set([...fromIndex, ...Object.keys(TYPES)])];
+  await Promise.all(toLoad.map(async t=>{ libs[t]=await loadLib(t, bust); }));
+  if(!TYPES[curType]) curType="unlock";
+  $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
+  renderAll();
 }
 
 function parseParams(){
@@ -412,8 +454,10 @@ function renderAll(){
   renderTabs(); renderStats(); renderObs(); renderMain(); renderDaily(); syncUrl();
 }
 
-async function init(){
-  parseParams();
+let uiBound=false;
+function bindUiOnce(){
+  if(uiBound) return;
+  uiBound=true;
   document.querySelectorAll("#rangeSeg button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#rangeSeg button").forEach(x=>x.classList.remove("on"));
     b.classList.add("on"); rangeMode=b.dataset.r; customFrom=customTo=null; $("fromD").value=""; $("toD").value=""; resetTimeSort(); renderAll();
@@ -421,12 +465,32 @@ async function init(){
   $("fromD").onchange=$("toD").onchange=()=>{ rangeMode="custom"; resetTimeSort(); renderAll(); };
   $("showFuture").onchange=()=>{ showFuture=$("showFuture").checked; resetTimeSort(); renderAll(); };
   $("showCancelled").onchange=()=>{ showCancelled=$("showCancelled").checked; resetTimeSort(); renderAll(); };
-  for(const t of Object.keys(TYPES)) libs[t]=await loadLib(t);
-  $("poll").textContent="数据 gh-pages raw · "+new Date().toLocaleString("zh-CN",{hour12:false});
-  resetTimeSort();
-  renderAll();
 }
-init();
+
+async function boot(){
+  parseParams();
+  bindUiOnce();
+  resetTimeSort();
+  const idx=await loadEventIndex(Date.now());
+  if(indexNeedsNewerHtml(idx)){
+    location.reload();
+    return;
+  }
+  await reloadEventData(idx);
+}
+
+window.addEventListener("pageshow", async ev=>{
+  if(!ev.persisted) return;
+  const idx=await loadEventIndex(Date.now());
+  if(indexNeedsNewerHtml(idx)){
+    location.reload();
+    return;
+  }
+  parseParams();
+  await reloadEventData(idx);
+});
+
+boot();
 </script>
 </body>
 </html>

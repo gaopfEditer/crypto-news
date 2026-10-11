@@ -466,6 +466,24 @@ function setMainView(v){
   if (v === "movers") renderMovers();
 }
 
+function absorbMainViewFromUrl(){
+  const q = new URLSearchParams(location.search).get("view");
+  let v = q === "movers" || q === "news" ? q : null;
+  if (!v){
+    const h = (location.hash || "").replace(/^#/, "");
+    if (h === "movers" || h === "news") v = h;
+  }
+  if (!v) return;
+  mainView = v;
+  LS.set("main_view", v);
+  try{
+    const u = new URL(location.href);
+    u.searchParams.delete("view");
+    if (u.hash === "#movers" || u.hash === "#news") u.hash = "";
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
+  }catch(e){}
+}
+
 function setMoversSub(v){
   moversSub = v;
   LS.set("movers_sub", v);
@@ -808,6 +826,7 @@ setInterval(() => { $("clock").textContent = t8(nowS()).slice(6) + ":" + pad(Mat
     await loadData();
     await loadMovers();
     bindControls();
+    absorbMainViewFromUrl();
     applyMainView();
     renderMovers();
     render();
