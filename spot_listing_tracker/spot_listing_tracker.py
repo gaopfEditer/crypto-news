@@ -38,6 +38,8 @@ UPBIT_ROW = re.compile(
     re.I,
 )
 QUOTES = ("USDT", "USDC", "KRW", "BTC", "ETH", "BRL", "TRY")
+sys.path.insert(0, os.path.join(HERE, "..", "event_store"))
+from spot_okx_filter import okx_is_xstock_instrument  # noqa: E402
 # analyze 配额：韩国所公告优先，避免 OKX 全量挤掉 Upbit/Bithumb（合并库会保留旧条，易出现「有 POD 无 KAIA」）
 ANALYZE_EX_PRIORITY = ("Upbit", "Bithumb", "Binance", "Bitget", "OKX")
 BITHUMB_LIST = re.compile(r"마켓\s*추가|원화\s*마켓\s*추가")
@@ -388,6 +390,8 @@ def src_okx(http, lo, hi):
     out = []
     d = http.get("https://www.okx.com/api/v5/public/instruments?instType=SPOT", "okx_spot_instruments.json", ttl=30 * 60)
     for s in d.get("data") or []:
+        if okx_is_xstock_instrument(s):
+            continue
         if not s.get("listTime"):
             continue
         lt = int(s["listTime"]) // 1000
