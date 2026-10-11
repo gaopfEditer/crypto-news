@@ -1,6 +1,6 @@
 # 事件库（`events/` on gh-pages）
 
-四类 tracker 输出经 `event_store/merge.py` 合并为 `events/{unlock,delist,perp_listing,burn}.json` + `index.json`，由 `.github/workflows/update-events.yml` 部署到 **gh-pages**。
+五类 tracker 输出经 `event_store/merge.py` 合并为 `events/{unlock,delist,perp_listing,burn,spot_listing}.json` + `index.json`，由 `.github/workflows/update-events.yml` 部署到 **gh-pages**。现货上交易所见 `spot_listing_tracker/`。
 
 ## 数据 URL（外部读取）
 
