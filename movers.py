@@ -100,7 +100,20 @@ def fetch_tickers():
             continue
         if not re.fullmatch(r"[A-Z0-9]{2,20}", base):
             continue
-        out.append({"symbol": sym, "base": base, "price": price, "change_pct": pct, "quote_volume": qv})
+        try:
+            tc = int(row.get("count") or 0)
+        except (TypeError, ValueError):
+            tc = 0
+        out.append(
+            {
+                "symbol": sym,
+                "base": base,
+                "price": price,
+                "change_pct": pct,
+                "quote_volume": qv,
+                "trade_count": tc,
+            }
+        )
     return out, src, market
 
 
@@ -109,6 +122,46 @@ def filter_and_rank(tickers, min_qv, top_n=10):
     gainers = sorted(eligible, key=lambda x: x["change_pct"], reverse=True)[:top_n]
     losers = sorted(eligible, key=lambda x: x["change_pct"])[:top_n]
     return gainers, losers
+
+
+def rank_hot(tickers, min_qv, top_n=10):
+    """热门：24h 成交额 × (1 + |涨跌幅|%)，兼顾资金与波动。"""
+    eligible = [t for t in tickers if t["quote_volume"] >= min_qv]
+    return sorted(
+        eligible,
+        key=lambda x: x["quote_volume"] * (1 + abs(x["change_pct"]) / 100.0),
+        reverse=True,
+    )[:top_n]
+
+
+def rank_volume_leaders(tickers, min_qv, top_n=10):
+    eligible = [t for t in tickers if t["quote_volume"] >= min_qv]
+    return sorted(eligible, key=lambda x: x["quote_volume"], reverse=True)[:top_n]
+
+
+def fetch_oi_leaders(tickers, min_qv, top_n=10, pool=45):
+    """按 USDT 永续持仓名义价值排序（需逐 symbol 调 openInterest，仅扫描成交额靠前池子）。"""
+    eligible = sorted(
+        [t for t in tickers if t["quote_volume"] >= min_qv],
+        key=lambda x: x["quote_volume"],
+        reverse=True,
+    )[:pool]
+    with_oi = []
+    for t in eligible:
+        try:
+            oi = http_get(
+                f"{FAPI}/fapi/v1/openInterest?"
+                + urllib.parse.urlencode({"symbol": t["symbol"]})
+            )
+            contracts = float(oi.get("openInterest") or 0)
+            if contracts <= 0 or t["price"] <= 0:
+                continue
+            oi_usd = contracts * t["price"]
+            with_oi.append({**t, "open_interest": contracts, "open_interest_usd": oi_usd})
+            time.sleep(0.05)
+        except Exception as e:
+            log(f"  openInterest {t['symbol']}: {e}")
+    return sorted(with_oi, key=lambda x: x["open_interest_usd"], reverse=True)[:top_n]
 
 
 def load_json_path(path):
@@ -347,31 +400,27 @@ def prepare_context(data_json, events_dir, now_ts):
     return {"news": news_map, "events": ev_map}
 
 
-def enrich_mover(item, side, ctx):
+def enrich_mover(item, side, ctx, full=True):
     base = item["base"]
     news_hits = match_news(ctx.get("_stories") or [], base, ctx["now_ts"])
     if not news_hits:
         news_hits = ctx["news"].get(base.upper(), [])[:3]
-    item_ctx = {
-        **ctx,
-        "news": {base.upper(): news_hits},
-        "events": {base.upper(): ctx["events"].get(base.upper(), [])},
-    }
     factors = []
     for st in news_hits:
         factors.append({"kind": "news", "text": news_factor_text(st), "url": st.get("url")})
-    for ev in item_ctx["events"].get(base.upper(), []):
+    for ev in ctx["events"].get(base.upper(), []):
         factors.append({"kind": "event", "text": event_factor_text(ev)})
-    vf = volume_factor(item["symbol"], ctx["market"], item["quote_volume"])
-    if vf:
-        factors.append(vf)
-    time.sleep(0.12)
-    for ff in futures_factors(item["symbol"], ctx["fapi_ok"]):
-        factors.append(ff)
+    if full:
+        vf = volume_factor(item["symbol"], ctx["market"], item["quote_volume"])
+        if vf:
+            factors.append(vf)
+        time.sleep(0.12)
+        for ff in futures_factors(item["symbol"], ctx["fapi_ok"]):
+            factors.append(ff)
     if not factors:
         factors.append({"kind": "fallback", "text": "未找到明确消息，疑似资金/情绪驱动"})
     note = direction_note(side, factors, item["change_pct"])
-    return {
+    row = {
         "symbol": item["symbol"],
         "base": base,
         "price": item["price"],
@@ -380,6 +429,17 @@ def enrich_mover(item, side, ctx):
         "direction_note": note,
         "factors": factors,
     }
+    if item.get("trade_count") is not None:
+        row["trade_count"] = item.get("trade_count")
+    if item.get("open_interest_usd") is not None:
+        row["open_interest_usd"] = round(item["open_interest_usd"], 2)
+    if item.get("open_interest") is not None:
+        row["open_interest"] = item["open_interest"]
+    return row
+
+
+def side_for_change(change_pct):
+    return "gainer" if change_pct >= 0 else "loser"
 
 
 def run(args):
@@ -388,7 +448,13 @@ def run(args):
     tickers, price_source, market = fetch_tickers()
     fapi_ok = price_source == "fapi_usdt_perp"
     gainers_raw, losers_raw = filter_and_rank(tickers, args.min_volume, args.top)
-    log(f"来源 {price_source}，候选 {len(tickers)}，涨幅榜 {len(gainers_raw)} / 跌幅榜 {len(losers_raw)}")
+    hot_raw = rank_hot(tickers, args.min_volume, args.top)
+    volume_raw = rank_volume_leaders(tickers, args.min_volume, args.top)
+    oi_raw = fetch_oi_leaders(tickers, args.min_volume, args.top) if fapi_ok else []
+    log(
+        f"来源 {price_source}，候选 {len(tickers)}，涨/跌 {len(gainers_raw)}/{len(losers_raw)}，"
+        f"热门 {len(hot_raw)}，成交额 {len(volume_raw)}，持仓 {len(oi_raw)}"
+    )
 
     data_json = load_json_path(args.data_json)
     events_dir = args.events_dir
@@ -403,19 +469,41 @@ def run(args):
         log(f"  分析跌幅 #{i+1} {it['symbol']}…")
         losers.append(enrich_mover(it, "loser", ctx))
 
+    hot, volume_leaders, oi_leaders = [], [], []
+    for i, it in enumerate(hot_raw):
+        log(f"  热门 #{i+1} {it['symbol']}…")
+        hot.append(enrich_mover(it, side_for_change(it["change_pct"]), ctx, full=False))
+    for i, it in enumerate(volume_raw):
+        log(f"  成交额 #{i+1} {it['symbol']}…")
+        volume_leaders.append(enrich_mover(it, side_for_change(it["change_pct"]), ctx, full=False))
+    for i, it in enumerate(oi_raw):
+        log(f"  持仓 #{i+1} {it['symbol']}…")
+        oi_leaders.append(enrich_mover(it, side_for_change(it["change_pct"]), ctx, full=False))
+
     doc = {
         "updated": now_ts,
         "updated_utc8": utc8(now_ts),
         "price_source": price_source,
         "market": market,
         "min_quote_volume_usd": args.min_volume,
+        "refresh_hours": 1,
         "gainers": gainers,
         "losers": losers,
+        "hot": hot,
+        "volume_leaders": volume_leaders,
+        "oi_leaders": oi_leaders,
+        "oi_available": bool(fapi_ok and oi_leaders),
+        "oi_note": None
+        if fapi_ok
+        else "现货回退数据源无全市场持仓接口；持仓榜仅在 USDT 永续可用时生成。",
     }
     out_path = args.out
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=1)
-    log(f"✓ 写入 {out_path}（{len(gainers)}↑ / {len(losers)}↓）")
+    log(
+        f"✓ 写入 {out_path}（{len(gainers)}↑ / {len(losers)}↓，"
+        f"热门 {len(hot)}，成交额 {len(volume_leaders)}，持仓 {len(oi_leaders)}）"
+    )
     return doc
 
 

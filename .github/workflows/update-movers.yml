@@ -2,8 +2,8 @@ name: 更新币安涨跌榜
 
 on:
   schedule:
-    # UTC 0/4/8/12/16/20 → 北京 8/12/16/20/0/4
-    - cron: '0 0,4,8,12,16,20 * * *'
+    # 每小时整点（UTC）→ 北京时间每小时 :00
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -69,4 +69,4 @@ jobs:
       - name: 摘要
         run: |
           echo "### 📈 涨跌榜更新" >> $GITHUB_STEP_SUMMARY
-          python3 -c "import json; d=json.load(open('publish/movers.json')); print(f\"- 快照: {d['updated_utc8']} (UTC+8)\n- 数据源: {d['price_source']}\n- 涨幅 {len(d['gainers'])} / 跌幅 {len(d['losers'])}\")" >> $GITHUB_STEP_SUMMARY
+          python3 -c "import json; d=json.load(open('publish/movers.json')); print(f\"- 快照: {d['updated_utc8']} (UTC+8)\n- 数据源: {d['price_source']}\n- 涨幅 {len(d['gainers'])} / 跌幅 {len(d['losers'])}\n- 热门 {len(d.get('hot') or [])} / 成交额 {len(d.get('volume_leaders') or [])} / 持仓 {len(d.get('oi_leaders') or [])}\")" >> $GITHUB_STEP_SUMMARY

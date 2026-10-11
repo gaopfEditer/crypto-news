@@ -81,6 +81,17 @@ input[type=range]{width:140px;accent-color:var(--warn)}
 .movers-factors{color:var(--mute);line-height:1.4;max-width:360px}
 .movers-factors a{color:#8fb8ff}
 .movers-note{color:var(--dim);font-size:11px;margin-top:2px}
+.movers-pane{display:none;max-width:1200px;margin:0 auto;padding:12px 14px 60px}
+.movers-pane.active{display:block}
+.movers-sub{margin:10px 0 12px}
+.movers-panel.vol h3{color:var(--warn)}
+.movers-panel.hot h3{color:var(--acc)}
+.movers-panel.oi h3{color:#c9a0ff}
+.view-news .filters,.view-news .stats{display:flex}
+.view-movers .filters,.view-movers .stats{display:none !important}
+.view-movers #list{display:none !important}
+.view-news #moversPane{display:none !important}
+.main-tab.on{background:#1f3350;border-color:var(--acc);color:#fff}
 @media (max-width:700px){.title{font-size:14px}.score{font-size:13px}}
 </style>
 </head>
@@ -88,8 +99,11 @@ input[type=range]{width:140px;accent-color:var(--warn)}
 <div class="top">
   <div class="bar">
     <span class="brand">◆ CRYPTO NEWS WATCH</span>
-    <div class="nav" style="display:flex;gap:4px;margin-left:12px">
-      <a href="index.html" class="nav-link active" style="padding:4px 12px;border:1px solid var(--acc);border-radius:4px;background:var(--acc);color:#fff;font-size:12px;text-decoration:none">新闻</a>
+    <div class="nav" style="display:flex;gap:4px;margin-left:12px;align-items:center;flex-wrap:wrap">
+      <span class="seg" id="mainViewTabs" title="首页视图">
+        <button type="button" id="tabNews" class="main-tab on">新闻流</button>
+        <button type="button" id="tabMovers" class="main-tab">行情榜</button>
+      </span>
       <a href="calendar.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">日历</a>
       <a href="events.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">事件追踪</a>
     </div>
@@ -114,12 +128,18 @@ input[type=range]{width:140px;accent-color:var(--warn)}
   <div class="stats" id="stats"></div>
 </div>
 <div class="banner" id="banner"></div>
-<div class="movers-block" id="moversBlock" style="display:none">
-  <h2>◆ 币安涨跌榜（每4小时）</h2>
-  <div class="movers-meta" id="moversMeta"></div>
-  <div class="movers-grid" id="moversGrid"></div>
-</div>
 <div class="list" id="list"><div class="empty">加载中…</div></div>
+<div class="movers-pane" id="moversPane">
+  <h2 style="font-size:15px;font-weight:700;margin:0 0 4px;color:var(--warn);font-family:Menlo,monospace">◆ 币安行情榜（约每 1 小时更新）</h2>
+  <div class="movers-meta" id="moversMeta"></div>
+  <div class="movers-sub seg" id="moversSubTabs">
+    <button type="button" id="mTabChange" class="on">涨跌幅</button>
+    <button type="button" id="mTabHot">热门</button>
+    <button type="button" id="mTabVol">交易量</button>
+    <button type="button" id="mTabOi">持仓 OI</button>
+  </div>
+  <div id="moversContent"></div>
+</div>
 
 <script>
 "use strict";
@@ -132,6 +152,8 @@ const LS = {
 let data = null;
 let movers = null;
 let moversSource = null;
+let mainView = LS.get("main_view", "news");
+let moversSub = LS.get("movers_sub", "change");
 let dataSource = null; // 记录数据来源
 let lastView = LS.get("last_view", null);
 const notified = new Set(LS.get("notified", []));
@@ -230,34 +252,102 @@ function renderFactors(factors){
   }).join("") + "</ul>";
 }
 
-function moversTable(rows, side){
-  const pctCls = side === "gain" ? "up" : "down";
-  let h = '<div class="movers-scroll"><table class="movers-table"><thead><tr><th>币种</th><th>价格</th><th>24h</th><th>成交额</th><th>因素</th></tr></thead><tbody>';
+function pctCell(r){
+  const sign = r.change_pct > 0 ? "+" : "";
+  const cls = r.change_pct > 0 ? "up" : r.change_pct < 0 ? "down" : "flat";
+  return '<td class="pct ' + cls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</td>";
+}
+
+function moversTable(rows, side, extraCol){
+  const pctCls = side === "gain" ? "up" : side === "lose" ? "down" : null;
+  let head = "<th>币种</th><th>价格</th><th>24h</th><th>成交额</th>";
+  if (extraCol) head += "<th>" + esc(extraCol.label) + "</th>";
+  head += "<th>因素 / 摘要</th>";
+  let h = '<div class="movers-scroll"><table class="movers-table"><thead><tr>' + head + "</tr></thead><tbody>";
   for (const r of rows){
+    const cls = pctCls || (r.change_pct > 0 ? "up" : r.change_pct < 0 ? "down" : "flat");
     const sign = r.change_pct > 0 ? "+" : "";
-    h += "<tr><td class=\"sym\">" + esc(r.base) + "</td><td>" + fmtPx(r.price) + '</td><td class="pct ' + pctCls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</td>";
-    h += '<td class="vol">' + fmtVol(r.quote_volume) + "</td><td>" + renderFactors(r.factors);
+    h += "<tr><td class=\"sym\">" + esc(r.base) + "</td><td>" + fmtPx(r.price) + '</td><td class="pct ' + cls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</td>";
+    h += '<td class="vol">' + fmtVol(r.quote_volume) + "</td>";
+    if (extraCol) h += "<td class=\"vol\">" + esc(extraCol.fmt(r)) + "</td>";
+    h += "<td>" + renderFactors(r.factors);
     if (r.direction_note) h += '<div class="movers-note">' + esc(r.direction_note) + "</div>";
     h += "</td></tr>";
   }
   return h + "</tbody></table></div>";
 }
 
+function hasMoversData(){
+  if (!movers) return false;
+  return (movers.gainers?.length || movers.losers?.length || movers.hot?.length
+    || movers.volume_leaders?.length || movers.oi_leaders?.length);
+}
+
+function applyMainView(){
+  document.body.classList.remove("view-news", "view-movers");
+  document.body.classList.add(mainView === "movers" ? "view-movers" : "view-news");
+  $("tabNews").classList.toggle("on", mainView === "news");
+  $("tabMovers").classList.toggle("on", mainView === "movers");
+  const pane = $("moversPane");
+  if (mainView === "movers" && hasMoversData()) pane.classList.add("active");
+  else pane.classList.remove("active");
+}
+
+function setMainView(v){
+  mainView = v;
+  LS.set("main_view", v);
+  applyMainView();
+  if (v === "movers") renderMovers();
+}
+
+function setMoversSub(v){
+  moversSub = v;
+  LS.set("movers_sub", v);
+  $("mTabChange").classList.toggle("on", v === "change");
+  $("mTabHot").classList.toggle("on", v === "hot");
+  $("mTabVol").classList.toggle("on", v === "vol");
+  $("mTabOi").classList.toggle("on", v === "oi");
+  renderMovers();
+}
+
 function renderMovers(){
-  const block = $("moversBlock");
-  if (!movers || (!movers.gainers?.length && !movers.losers?.length)){
-    block.style.display = "none";
+  if (!hasMoversData()){
+    applyMainView();
     return;
   }
-  block.style.display = "block";
   const srcMap = { fapi_usdt_perp: "Binance USDT 永续", spot_usdt: "Binance 现货 USDT（永续不可用时的回退）" };
   let meta = "快照 " + esc(movers.updated_utc8 || "") + " (UTC+8)";
+  meta += " · 约每 " + (movers.refresh_hours || 1) + " 小时刷新";
   meta += " · 数据源 " + esc(srcMap[movers.price_source] || movers.price_source || "");
+  if (movers.min_quote_volume_usd) meta += " · 最低成交额 " + fmtVol(movers.min_quote_volume_usd);
   if (moversSource) meta += " · " + esc(moversSource);
+  if (movers.oi_note) meta += " · " + esc(movers.oi_note);
   $("moversMeta").innerHTML = meta;
-  $("moversGrid").innerHTML =
-    '<div class="movers-panel gain"><h3>涨幅榜 Top ' + movers.gainers.length + "</h3>" + moversTable(movers.gainers, "gain") + "</div>" +
-    '<div class="movers-panel lose"><h3>跌幅榜 Top ' + movers.losers.length + "</h3>" + moversTable(movers.losers, "lose") + "</div>";
+  const box = $("moversContent");
+  if (moversSub === "change"){
+    box.innerHTML =
+      '<div class="movers-grid">' +
+      '<div class="movers-panel gain"><h3>涨幅榜 Top ' + (movers.gainers?.length || 0) + "</h3>" + moversTable(movers.gainers || [], "gain") + "</div>" +
+      '<div class="movers-panel lose"><h3>跌幅榜 Top ' + (movers.losers?.length || 0) + "</h3>" + moversTable(movers.losers || [], "lose") + "</div></div>";
+    box.innerHTML += '<p class="movers-note" style="margin-top:8px">涨跌幅榜含量能/资金费率/OI 异动等完整因素分析；热门与成交额榜复用新闻/事件匹配摘要。</p>';
+  } else if (moversSub === "hot"){
+    const hotExtra = { label: "热度分", fmt: r => {
+      const score = (r.quote_volume || 0) * (1 + Math.abs(r.change_pct || 0) / 100);
+      return score >= 1e9 ? (score / 1e9).toFixed(2) + "B" : (score / 1e6).toFixed(1) + "M";
+    }};
+    box.innerHTML = '<div class="movers-panel hot"><h3>热门榜 Top ' + (movers.hot?.length || 0) + "（成交额×波动）</h3>" + moversTable(movers.hot || [], null, hotExtra) + "</div>";
+  } else if (moversSub === "vol"){
+    box.innerHTML = '<div class="movers-panel vol"><h3>24h 交易量榜 Top ' + (movers.volume_leaders?.length || 0) + "</h3>" + moversTable(movers.volume_leaders || [], null) + "</div>";
+  } else if (moversSub === "oi"){
+    if (!movers.oi_available && !(movers.oi_leaders?.length)){
+      box.innerHTML = '<div class="empty">' + esc(movers.oi_note || "当前数据源暂无持仓榜") + "</div>";
+    } else {
+      const oiCol = { label: "持仓(OI)", fmt: r => fmtVol(r.open_interest_usd) };
+      box.innerHTML = '<div class="movers-panel oi"><h3>永续持仓 OI Top ' + (movers.oi_leaders?.length || 0) + "（名义 USDT）</h3>" + moversTable(movers.oi_leaders || [], null, oiCol) + "</div>";
+      box.innerHTML += '<p class="movers-note" style="margin-top:8px">OI 在成交额靠前池内逐币查询 Binance openInterest，非全市场 exhaustive 扫描。</p>';
+    }
+  }
+  applyMainView();
 }
 
 // ---------------------------------------------------------------- notify
@@ -473,6 +563,13 @@ function bindControls(){
   $("optSound").checked = st.sound;
   $("optSound").onchange = e => { st.sound = e.target.checked; LS.set("sound", st.sound); if (st.sound) beep(); };
   $("markRead").onclick = () => { lastView = data.updated; LS.set("last_view", lastView); render(); };
+  $("tabNews").onclick = () => setMainView("news");
+  $("tabMovers").onclick = () => setMainView("movers");
+  $("mTabChange").onclick = () => setMoversSub("change");
+  $("mTabHot").onclick = () => setMoversSub("hot");
+  $("mTabVol").onclick = () => setMoversSub("vol");
+  $("mTabOi").onclick = () => setMoversSub("oi");
+  setMoversSub(moversSub);
   $("list").addEventListener("click", e => {
     const s = e.target.closest("[data-sum]"); if (!s) return;
     const id = s.dataset.sum; if (expanded.has(id)) expanded.delete(id); else expanded.add(id); s.classList.toggle("open");
@@ -490,6 +587,7 @@ setInterval(() => { $("clock").textContent = t8(nowS()).slice(6) + ":" + pad(Mat
     await loadData();
     await loadMovers();
     bindControls();
+    applyMainView();
     renderMovers();
     render();
     // 每60秒重新加载数据
