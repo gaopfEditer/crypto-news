@@ -124,6 +124,7 @@ jobs:
           python3 -c "import sys; sys.path.insert(0,'event_store'); from store import rebuild_index; rebuild_index('publish/events')"
           cp events.html unlocks.html publish/
           cp index.html calendar.html publish/
+          cp potential.html potential.json publish/ 2>/dev/null || true
           python3 event_store/verify_unlock_lib.py publish/events/unlock.json
 
       - name: 部署 gh-pages

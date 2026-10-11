@@ -53,6 +53,9 @@ jobs:
           cp calendar.html publish/ 2>/dev/null || true
           cp events.html publish/ 2>/dev/null || true
           cp unlocks.html publish/ 2>/dev/null || true
+          cp potential.html publish/ 2>/dev/null || true
+          # 潜力币：当前为仓库静态假数据；后续可在上一步由 auto-script 生成 publish/potential.json
+          cp potential.json publish/ 2>/dev/null || true
           echo "" > publish/.nojekyll
 
       - name: 部署 gh-pages
