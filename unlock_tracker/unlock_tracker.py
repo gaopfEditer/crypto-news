@@ -35,7 +35,11 @@ def fmt_ts(ts):
 
 # ---------------------------------------------------------------- HTTP + cache
 class Http:
-    INTERVAL = {"api.coingecko.com": 6.5, "api.coinmarketcap.com": 1.0}
+    INTERVAL = {
+        "api.coingecko.com": 6.5,
+        "api.coinmarketcap.com": 1.0,
+        "api-manager.upbit.com": 1.25,
+    }
 
     def __init__(self, cache_dir, refresh=False):
         self.cache_dir = os.path.join(cache_dir, "raw")
@@ -73,7 +77,14 @@ class Http:
                 err = e
                 if e.code in (429, 500, 502, 503, 504, 520, 522):
                     ra = e.headers.get("Retry-After")
-                    back = float(ra) if ra and ra.isdigit() else (20 if host == "api.coingecko.com" else 3) * (attempt + 1)
+                    if ra and ra.isdigit():
+                        back = float(ra)
+                    elif host == "api.coingecko.com":
+                        back = 20 * (attempt + 1)
+                    elif host == "api-manager.upbit.com":
+                        back = 8 * (attempt + 1)
+                    else:
+                        back = 3 * (attempt + 1)
                     log(f"HTTP {e.code} {host}, retry in {back:.0f}s")
                     time.sleep(back)
                     continue
