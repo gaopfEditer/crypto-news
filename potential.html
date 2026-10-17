@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<title>潜力币 - 加密新闻看板</title>
+<style>
+:root{--bg:#0b0e11;--panel:#12161c;--panel2:#181d25;--line:#232a35;--txt:#d6dde6;--dim:#7d8896;--mute:#59626e;--up:#2ebd85;--down:#e85d6f;--warn:#f0b90b;--acc:#3d8bfd}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC",Menlo,monospace}
+a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:6;background:#0d1117ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 14px}
+.brand{font-weight:700;color:var(--warn);font-family:Menlo,monospace}
+.site-nav{display:flex;gap:4px;margin-left:12px;align-items:center;flex-wrap:wrap}
+.nav-link{padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none}
+.nav-link:hover{border-color:var(--acc);color:var(--acc)}
+.nav-link.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.seg.site-main-tabs{box-shadow:0 2px 12px rgba(0,0,0,.28);border-radius:8px;overflow:hidden}
+.seg.site-main-tabs a{display:inline-block;padding:6px 14px;font-size:12px;font-weight:600;color:var(--dim);background:var(--panel2);text-decoration:none;border-right:1px solid var(--line)}
+.seg.site-main-tabs a:last-child{border-right:none}
+.seg.site-main-tabs a:hover{color:var(--acc)}
+.sp{flex:1}
+.poll{font-family:Menlo,monospace;color:var(--dim);font-size:11px}
+.wrap{padding:12px 14px 60px;max-width:1200px;margin:0 auto}
+.banner{padding:10px 12px;border:1px solid #5a4a12;background:#2a230b;color:var(--warn);border-radius:8px;margin-bottom:12px;line-height:1.5}
+.banner strong{color:#ffe08a}
+.meta-bar{color:var(--dim);font-size:12px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.meta-bar b{color:var(--txt)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.seg{display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.seg button{padding:5px 12px;font-size:12px;background:var(--panel2);color:var(--txt);border:none;border-right:1px solid var(--line);cursor:pointer}
+.seg button:last-child{border-right:none}
+.seg button.on{background:#1f3350;color:#fff;box-shadow:inset 0 0 0 1px var(--acc)}
+label.filter{font-size:12px;color:var(--dim);display:inline-flex;align-items:center;gap:6px}
+select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:12px}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.card:hover{border-color:#3a4554;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.card-hdr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 12px;cursor:pointer;user-select:none}
+.card-hdr:hover{background:#151a22}
+.sym{font-family:Menlo,monospace;font-weight:800;font-size:15px;color:#f3f6fa}
+.mcap{font-size:11px;color:var(--dim);font-family:Menlo,monospace}
+.score{margin-left:auto;font-family:Menlo,monospace;font-weight:800;font-size:16px;color:var(--warn)}
+.badge-model{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--line);white-space:nowrap}
+.badge-model.m1{color:#7ee8b0;border-color:#1f4d38;background:#0f241c}
+.badge-model.m2{color:#ffb86b;border-color:#5a3d12;background:#2a1f0d}
+.badge-model.m3{color:#8fb8ff;border-color:#2a3f5f;background:#152238}
+.badge-model.m4{color:#d4a5ff;border-color:#4a2f5a;background:#221828}
+.badge-model.m5{color:#ffd479;border-color:#5a4a12;background:#2a230b}
+.stage{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);font-weight:600}
+.stage.watch{color:var(--dim);background:var(--panel2)}
+.stage.primed{color:var(--acc);border-color:#2a4a7a;background:#121f33}
+.stage.triggered{color:var(--up);border-color:#145c3d;background:#0d2a1e}
+.stage.exiting{color:var(--down);border-color:#5a2730;background:#2a1518}
+.tf{font-size:10px;color:var(--mute);font-family:Menlo,monospace}
+.ts{font-size:11px;color:var(--dim);font-family:Menlo,monospace}
+.card-body{display:none;padding:0 12px 12px;border-top:1px solid var(--line);background:#0f1318}
+.card.open .card-body{display:block}
+.card-body section{margin-top:10px}
+.card-body h4{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.card-body p{margin:0;line-height:1.55;color:#b8c4d4;font-size:12px}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:6px}
+.metric{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.metric .k{font-size:10px;color:var(--mute)}
+.metric .v{font-family:Menlo,monospace;font-weight:700;font-size:13px;margin-top:2px}
+.metric .v.up{color:var(--up)}.metric .v.down{color:var(--down)}
+.notes-tag{font-size:11px;color:var(--dim);margin-top:6px}
+.chev{color:var(--mute);font-size:12px;margin-left:4px;transition:transform .15s}
+.card.open .chev{transform:rotate(90deg)}
+.empty{color:var(--dim);padding:40px;text-align:center}
+.risk{font-size:11px;color:var(--mute);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <span class="brand">◆ CRYPTO NEWS WATCH</span>
+    <div class="site-nav">
+      <span class="seg site-main-tabs" title="首页视图">
+        <a href="index.html">新闻流</a>
+        <a href="index.html?view=movers">行情榜</a>
+      </span>
+      <a href="potential.html" class="nav-link active">潜力币</a>
+      <a href="calendar.html" class="nav-link">日历</a>
+      <a href="events.html" class="nav-link">事件追踪</a>
+    </div>
+    <span class="sp"></span>
+    <span class="poll" id="poll">加载中…</span>
+  </div>
+</div>
+<div class="wrap">
+  <div class="banner">
+    <strong>假数据 / 骨架展示</strong> — 本页仅为潜力币发现 UI 与字段约定演示，<strong>非实盘交易信号</strong>。发现逻辑后续接入 <code>gaopfEditer/auto-script</code>，由 Actions 定时写入 <code>potential.json</code> 并发布至 gh-pages（与 movers.json 相同路径策略）。
+  </div>
+  <div class="meta-bar" id="metaBar">—</div>
+  <div class="toolbar">
+    <span class="seg" id="sortSeg">
+      <button type="button" data-sort="score" class="on">按综合分</button>
+      <button type="button" data-sort="stage">按阶段</button>
+      <button type="button" data-sort="time">按更新时间</button>
+    </span>
+    <label class="filter">阶段
+      <select id="fStage">
+        <option value="">全部</option>
+        <option value="triggered">已触发</option>
+        <option value="primed">待触发</option>
+        <option value="watch">观察</option>
+        <option value="exiting">退出/失效</option>
+      </select>
+    </label>
+    <label class="filter">模型
+      <select id="fModel">
+        <option value="">全部</option>
+        <option value="quiet_oi_breakout">M1 OI 爆发</option>
+        <option value="short_squeeze">M2 轧空</option>
+        <option value="relative_strength">M3 强弱背离</option>
+        <option value="wyckoff_spring">M4 威科夫</option>
+        <option value="liquidity_sweep">M5 SFP</option>
+      </select>
+    </label>
+  </div>
+  <div class="list" id="list"><div class="empty">加载中…</div></div>
+  <p class="risk" id="riskHint"></p>
+</div>
+<script>
+const MODEL_META = {
+  quiet_oi_breakout: { id: "M1", cls: "m1", label: "OI爆发" },
+  short_squeeze: { id: "M2", cls: "m2", label: "轧空" },
+  relative_strength: { id: "M3", cls: "m3", label: "强弱" },
+  wyckoff_spring: { id: "M4", cls: "m4", label: "威科夫" },
+  liquidity_sweep: { id: "M5", cls: "m5", label: "SFP" }
+};
+const STAGE_ORDER = { triggered: 0, primed: 1, watch: 2, exiting: 3 };
+const STAGE_ZH = { watch: "观察", primed: "待触发", triggered: "已触发", exiting: "退出" };
+
+let payload = null;
+let sortKey = "score";
+let dataSource = "";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  if (s == null) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function fmtMcap(n){
+  if (n == null || n === "") return "—";
+  const x = Number(n);
+  if (!Number.isFinite(x)) return esc(n);
+  if (x >= 1e9) return (x / 1e9).toFixed(2) + "B";
+  if (x >= 1e6) return (x / 1e6).toFixed(1) + "M";
+  return x.toLocaleString("en-US");
+}
+function fmtPct(v, signed){
+  if (v == null || v === "") return "—";
+  const x = Number(v);
+  if (!Number.isFinite(x)) return esc(v);
+  const s = (signed && x > 0 ? "+" : "") + x.toFixed(2) + "%";
+  return s;
+}
+function pctClass(v){
+  const x = Number(v);
+  if (!Number.isFinite(x)) return "";
+  if (x > 0) return "up";
+  if (x < 0) return "down";
+  return "";
+}
+
+async function fetchJson(url){
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function loadData(){
+  const cacheBust = Date.now();
+  const localUrl = "./potential.json?_=" + cacheBust;
+  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/potential.json?_=" + cacheBust;
+  const local = await fetchJson(localUrl);
+  const remote = local ? null : await fetchJson(remoteUrl);
+  if (local) { payload = local; dataSource = "本地 potential.json"; }
+  else if (remote) { payload = remote; dataSource = "GitHub gh-pages"; }
+  else { payload = null; dataSource = ""; }
+}
+
+function modelBadges(models){
+  if (!models || !models.length) return '<span class="badge-model">—</span>';
+  return models.map(m => {
+    const meta = MODEL_META[m] || { id: "?", cls: "", label: m };
+    return '<span class="badge-model ' + meta.cls + '" title="' + esc(m) + '">' + esc(meta.id) + " " + esc(meta.label) + "</span>";
+  }).join("");
+}
+
+function metricsHtml(metrics){
+  if (!metrics || typeof metrics !== "object") return "<p>—</p>";
+  const items = [
+    { k: "OI 7d", v: metrics.oi_change_7d_pct, signed: true },
+    { k: "资金费率", v: metrics.funding_rate != null ? Number(metrics.funding_rate) * 100 : null, signed: true, suffix: "%" },
+    { k: "相对 BTC 24h", v: metrics.vs_btc_24h_pct, signed: true },
+    { k: "量比", v: metrics.volume_ratio, signed: false }
+  ];
+  return '<div class="metrics-grid">' + items.map(it => {
+    let val = it.v;
+    let display = "—";
+    let cls = "";
+    if (val != null && Number.isFinite(Number(val))) {
+      const n = Number(val);
+      if (it.suffix === "%") display = (n >= 0 ? "+" : "") + n.toFixed(3) + "%";
+      else if (it.signed) { display = fmtPct(n, true); cls = pctClass(n); }
+      else display = n.toFixed(2);
+    }
+    return '<div class="metric"><div class="k">' + esc(it.k) + '</div><div class="v ' + cls + '">' + esc(display) + "</div></div>";
+  }).join("") + "</div>";
+}
+
+function sortedFiltered(){
+  let rows = (payload && payload.candidates) ? payload.candidates.slice() : [];
+  const st = $("fStage").value;
+  const md = $("fModel").value;
+  if (st) rows = rows.filter(r => r.stage === st);
+  if (md) rows = rows.filter(r => (r.models || []).includes(md));
+  rows.sort((a, b) => {
+    if (sortKey === "score") return (b.score || 0) - (a.score || 0);
+    if (sortKey === "stage") {
+      const da = STAGE_ORDER[a.stage] ?? 9;
+      const db = STAGE_ORDER[b.stage] ?? 9;
+      if (da !== db) return da - db;
+      return (b.score || 0) - (a.score || 0);
+    }
+    const ta = (a.ts_utc8 || "").replace(/[^\d]/g, "");
+    const tb = (b.ts_utc8 || "").replace(/[^\d]/g, "");
+    return tb.localeCompare(ta);
+  });
+  return rows;
+}
+
+function render(){
+  $("poll").textContent = payload ? "已加载" : "加载失败";
+  if (!payload) {
+    $("list").innerHTML = '<div class="empty">无法读取 potential.json（请确认文件存在或 gh-pages 已发布）</div>';
+    $("metaBar").innerHTML = "";
+    return;
+  }
+  let meta = "快照 <b>" + esc(payload.updated_utc8 || "—") + "</b> (UTC+8)";
+  if (payload.refresh_hours) meta += " · 约每 " + payload.refresh_hours + " 小时刷新";
+  if (payload.source_note) meta += " · " + esc(payload.source_note);
+  if (dataSource) meta += " · 数据源 " + esc(dataSource);
+  $("metaBar").innerHTML = meta;
+  $("riskHint").textContent = payload.risk_hint || "单笔风险建议 ≤ 本金 1–2%（仅提示，不执行交易）";
+
+  const rows = sortedFiltered();
+  if (!rows.length) {
+    $("list").innerHTML = '<div class="empty">无符合筛选的候选</div>';
+    return;
+  }
+  $("list").innerHTML = rows.map((r, i) => {
+    const stage = r.stage || "watch";
+    const stageZh = STAGE_ZH[stage] || stage;
+    const exitBlock = r.exit
+      ? '<section><h4>失效 / 见顶征兆</h4><p>' + esc(r.exit) + "</p></section>"
+      : '<section><h4>失效 / 见顶征兆</h4><p class="ts">（暂无）</p></section>';
+    return '<article class="card" data-idx="' + i + '">' +
+      '<div class="card-hdr" role="button" tabindex="0" aria-expanded="false">' +
+      '<span class="sym">' + esc(r.symbol) + '</span>' +
+      '<span class="mcap">市值 ' + fmtMcap(r.mcap_usd) + " USD</span>" +
+      modelBadges(r.models) +
+      '<span class="stage ' + esc(stage) + '">' + esc(stageZh) + "</span>" +
+      '<span class="tf">' + esc(r.tf || "—") + "</span>" +
+      '<span class="ts">' + esc(r.ts_utc8 || "") + "</span>" +
+      '<span class="score">' + esc(r.score != null ? r.score : "—") + "</span>" +
+      '<span class="chev">▶</span></div>' +
+      '<div class="card-body">' +
+      '<section><h4>入场 / 观察条件</h4><p>' + esc(r.entry || "—") + "</p></section>" +
+      exitBlock +
+      '<section><h4>关键数值 (metrics)</h4>' + metricsHtml(r.metrics) + "</section>" +
+      (r.notes ? '<p class="notes-tag">备注：' + esc(r.notes) + "</p>" : "") +
+      "</div></article>";
+  }).join("");
+
+  $("list").querySelectorAll(".card-hdr").forEach(hdr => {
+    const toggle = () => {
+      const card = hdr.closest(".card");
+      const open = card.classList.toggle("open");
+      hdr.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    hdr.addEventListener("click", toggle);
+    hdr.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+  });
+}
+
+document.querySelectorAll("#sortSeg button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#sortSeg button").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    sortKey = btn.dataset.sort;
+    render();
+  });
+});
+$("fStage").onchange = render;
+$("fModel").onchange = render;
+
+(async () => {
+  await loadData();
+  render();
+})();
+</script>
+</body>
+</html>

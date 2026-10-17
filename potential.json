@@ -1,0 +1,116 @@
+{
+  "updated_utc8": "2026-10-11 20:08:00",
+  "refresh_hours": 1,
+  "source_note": "静态假数据（骨架 v0.1）；后续由 auto-script 扫描写入",
+  "risk_hint": "单笔风险建议 ≤ 本金 1–2%（仅展示提示，不执行交易）",
+  "candidates": [
+    {
+      "symbol": "OGNUSDT",
+      "mcap_usd": 42800000,
+      "models": ["quiet_oi_breakout"],
+      "score": 78,
+      "stage": "primed",
+      "entry": "4H 横盘企稳；近 10 日 OI +18%，昨日量能 2.1× 均量；回踩 EMA20 不破待放量突破",
+      "exit": "",
+      "metrics": {
+        "oi_change_7d_pct": 18.2,
+        "funding_rate": 0.012,
+        "vs_btc_24h_pct": 4.6,
+        "volume_ratio": 2.1
+      },
+      "tf": "4h",
+      "ts_utc8": "2026-10-11 19:45:00",
+      "notes": "M1 样例 · 小市值永续"
+    },
+    {
+      "symbol": "TRBUSDT",
+      "mcap_usd": 312000000,
+      "models": ["short_squeeze"],
+      "score": 85,
+      "stage": "triggered",
+      "entry": "资金费率 -1.2%/8h 档；OI 3 日 +32% 但价格横盘于支撑；现货溢价收窄",
+      "exit": "费率回升至 -0.2% 附近需降权",
+      "metrics": {
+        "oi_change_7d_pct": 32.4,
+        "funding_rate": -0.012,
+        "vs_btc_24h_pct": 8.1,
+        "volume_ratio": 1.6
+      },
+      "tf": "1h",
+      "ts_utc8": "2026-10-11 20:00:00",
+      "notes": "M2 样例 · 负费率轧空观察"
+    },
+    {
+      "symbol": "SEIUSDT",
+      "mcap_usd": 89000000,
+      "models": ["relative_strength"],
+      "score": 71,
+      "stage": "watch",
+      "entry": "BTC 1H 下跌时 SEI 拒绝新低；COIN/BTC 4H 站上 EMA20；待 BTC 止跌信号同步点火",
+      "exit": "",
+      "metrics": {
+        "oi_change_7d_pct": 6.5,
+        "funding_rate": 0.008,
+        "vs_btc_24h_pct": 5.9,
+        "volume_ratio": 1.3
+      },
+      "tf": "4h",
+      "ts_utc8": "2026-10-11 18:30:00",
+      "notes": "M3 样例 · 相对强弱首冲"
+    },
+    {
+      "symbol": "STXUSDT",
+      "mcap_usd": 156000000,
+      "models": ["wyckoff_spring"],
+      "score": 66,
+      "stage": "primed",
+      "entry": "箱体震荡 8 周；昨日 Spring 刺破箱底后 2 根 4H 收回，下影/缩量回踩",
+      "exit": "若收盘跌回箱底外则结构失效",
+      "metrics": {
+        "oi_change_7d_pct": 4.1,
+        "funding_rate": 0.005,
+        "vs_btc_24h_pct": 2.2,
+        "volume_ratio": 0.9
+      },
+      "tf": "4h",
+      "ts_utc8": "2026-10-11 17:10:00",
+      "notes": "M4 样例 · 威科夫 Spring"
+    },
+    {
+      "symbol": "WOOUSDT",
+      "mcap_usd": 52000000,
+      "models": ["liquidity_sweep"],
+      "score": 74,
+      "stage": "triggered",
+      "entry": "Equal Lows 止损池；1H 插针扫低后收回箱体；止损置于针尖下方",
+      "exit": "对侧流动性未触及前持有；中轴二次衰竭减仓",
+      "metrics": {
+        "oi_change_7d_pct": 11.0,
+        "funding_rate": -0.003,
+        "vs_btc_24h_pct": 3.4,
+        "volume_ratio": 2.8
+      },
+      "tf": "1h",
+      "ts_utc8": "2026-10-11 19:20:00",
+      "notes": "M5 样例 · SFP 流动性打靶"
+    },
+    {
+      "symbol": "BANDUSDT",
+      "mcap_usd": 38000000,
+      "models": ["quiet_oi_breakout", "relative_strength"],
+      "score": 82,
+      "stage": "exiting",
+      "entry": "多模型共振：OI 抬升 + 相对 BTC 走强已触发",
+      "exit": "拉升后 OI 单日 -15%，4H 放量长上影，量价背离",
+      "metrics": {
+        "oi_change_7d_pct": -8.2,
+        "funding_rate": 0.045,
+        "vs_btc_24h_pct": -1.2,
+        "volume_ratio": 3.4
+      },
+      "tf": "15m",
+      "ts_utc8": "2026-10-11 20:05:00",
+      "notes": "双模型样例 · 失效征兆演示"
+    }
+  ]
+}
