@@ -16,7 +16,16 @@ import impact
 TZ8 = timezone(timedelta(hours=8))
 UA = "Mozilla/5.0 (compatible; crypto-news-movers/1.0)"
 FAPI = "https://fapi.binance.com"
+FAPI_MIRROR = "https://www.binance.com"
+FAPI_HOSTS = (FAPI, FAPI_MIRROR)
 SPOT = "https://data-api.binance.vision"
+
+_active_fapi_base = None
+
+
+def active_fapi_base():
+    """当前会话可用的 USDT-M 永续 API 根地址（主站 451 时可能为 www.binance.com 镜像）。"""
+    return _active_fapi_base or FAPI
 
 STABLE_BASES = {
     "USDT", "USDC", "BUSD", "FDUSD", "TUSD", "DAI", "USDP", "USDD", "EUR", "AEUR",
@@ -72,14 +81,30 @@ def is_leveraged_token(base):
     return False
 
 
+def fetch_perp_tickers():
+    global _active_fapi_base
+    last_err = None
+    for base in FAPI_HOSTS:
+        try:
+            rows = http_get(f"{base}/fapi/v1/ticker/24hr")
+            _active_fapi_base = base
+            if base != FAPI:
+                log(f"✓ 永续 ticker 使用镜像 {base}（fapi.binance.com 不可用）")
+            return rows, "fapi_usdt_perp", "usdt_perpetual"
+        except RuntimeError as e:
+            last_err = e
+            log(f"  永续 ticker {base}: {e}")
+    _active_fapi_base = None
+    raise last_err
+
+
 def fetch_tickers():
+    global _active_fapi_base
     try:
-        rows = http_get(f"{FAPI}/fapi/v1/ticker/24hr")
-        src = "fapi_usdt_perp"
-        market = "usdt_perpetual"
+        rows, src, market = fetch_perp_tickers()
     except RuntimeError as e:
-        if "451" not in str(e) and "403" not in str(e):
-            log(f"⚠ fapi 不可用 ({e})，改用 spot")
+        log(f"⚠ 永续 API 均不可用 ({e})，改用 spot")
+        _active_fapi_base = None
         rows = http_get(f"{SPOT}/api/v3/ticker/24hr")
         src = "spot_usdt"
         market = "spot_usdt"
@@ -151,7 +176,7 @@ def fetch_oi_leaders(tickers, min_qv, top_n=10, pool=45):
     for t in eligible:
         try:
             oi = http_get(
-                f"{FAPI}/fapi/v1/openInterest?"
+                f"{active_fapi_base()}/fapi/v1/openInterest?"
                 + urllib.parse.urlencode({"symbol": t["symbol"]})
             )
             contracts = float(oi.get("openInterest") or 0)
@@ -253,7 +278,7 @@ def match_events(events_by_ticker, base, now_ts):
 
 def kline_base_url(market):
     if market == "usdt_perpetual":
-        return f"{FAPI}/fapi/v1/klines"
+        return f"{active_fapi_base()}/fapi/v1/klines"
     return f"{SPOT}/api/v3/klines"
 
 
@@ -288,7 +313,10 @@ def futures_factors(symbol, fapi_ok):
         return []
     out = []
     try:
-        prem = http_get(f"{FAPI}/fapi/v1/premiumIndex?" + urllib.parse.urlencode({"symbol": symbol}))
+        prem = http_get(
+            f"{active_fapi_base()}/fapi/v1/premiumIndex?"
+            + urllib.parse.urlencode({"symbol": symbol})
+        )
         fr = float(prem.get("lastFundingRate") or 0)
         if abs(fr) >= 0.0001:
             bias = "多头支付费率" if fr > 0 else "空头支付费率"
@@ -297,7 +325,7 @@ def futures_factors(symbol, fapi_ok):
         log(f"  funding {symbol}: {e}")
     try:
         hist = http_get(
-            f"{FAPI}/futures/data/openInterestHist?"
+            f"{active_fapi_base()}/futures/data/openInterestHist?"
             + urllib.parse.urlencode({"symbol": symbol, "period": "1d", "limit": 2})
         )
         if isinstance(hist, list) and len(hist) >= 2:
