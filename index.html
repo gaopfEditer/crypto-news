@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<title>加密新闻看板</title>
+<style>
+:root{--bg:#0b0e11;--panel:#12161c;--panel2:#181d25;--line:#232a35;--txt:#d6dde6;--dim:#7d8896;--mute:#6b7583;
+--up:#2ebd85;--down:#e85d6f;--warn:#f0b90b;--acc:#3d8bfd;--big:#e85d6f;--hit:#f0b90b;--new:#3d8bfd;
+--radius:8px;--shadow:0 2px 12px rgba(0,0,0,.28);--card-pad:12px;--list-gap:10px}
+body.density-compact{--card-pad:8px;--list-gap:6px}
+body.density-comfortable{--card-pad:14px;--list-gap:14px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Menlo,monospace}
+a{color:#8fb8ff;text-decoration:none}a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:20;background:#0d1117f2;backdrop-filter:blur(10px);border-bottom:1px solid var(--line);box-shadow:0 4px 20px rgba(0,0,0,.35)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px}
+.bar.filters{padding:10px 14px;gap:8px 10px;align-items:flex-end}
+.brand{font-weight:700;letter-spacing:.5px;color:var(--warn);font-family:Menlo,monospace}
+.clock{font-family:Menlo,monospace;color:var(--dim)}
+.health{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--dim);font-size:12px;cursor:default;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.ok{background:var(--up);box-shadow:0 0 6px var(--up)}.dot.warn{background:var(--warn)}.dot.down{background:var(--down);box-shadow:0 0 6px var(--down)}.dot.pending{background:var(--acc)}
+.poll{color:var(--dim);font-size:12px;font-family:Menlo,monospace}
+.sp{flex:1}
+button,select,input[type=text]{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font:inherit;font-size:12px}
+button{cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}button:hover{border-color:#3a4554}
+button.on{background:#1f3350;border-color:var(--acc);color:#fff;box-shadow:0 0 0 1px rgba(61,139,253,.35)}
+.seg{display:inline-flex;box-shadow:var(--shadow);border-radius:var(--radius);overflow:hidden}
+.seg button{border-radius:0;border:none;border-right:1px solid var(--line);padding:6px 14px;font-weight:600}
+.seg button:last-child{border-right:none}
+.filter-tabs.seg button{min-width:56px}
+.imp-tabs button{font-size:11px;padding:5px 10px}
+.filters{border-top:1px solid var(--line);background:linear-gradient(180deg,var(--panel) 0,#10141a 100%)}
+.filters label{color:var(--dim);font-size:11px;display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px}
+.filters label.inline{flex-direction:row;align-items:center}
+.filters select{min-width:88px;max-width:140px}
+.filter-row{display:flex;flex-wrap:wrap;gap:8px 12px;width:100%;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:4px}
+.filter-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.search-wrap{position:relative;flex:1;min-width:160px;max-width:280px}
+.search-wrap input{width:100%;padding-left:30px}
+.search-wrap .ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--mute);pointer-events:none;font-size:13px}
+.more-wrap{position:relative}
+.more-menu{display:none;position:absolute;right:0;top:calc(100% + 4px);min-width:180px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:8px;z-index:30;flex-direction:column;gap:6px}
+.more-menu.open{display:flex}
+.more-menu label{font-size:12px;color:var(--txt);flex-direction:row;align-items:center;gap:6px;width:100%}
+.more-menu button{width:100%;text-align:left}
+.btn-reset{font-size:11px;padding:4px 8px;color:var(--dim)}
+.stats{color:var(--dim);font-size:12px;padding:6px 14px 8px;border-bottom:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap}
+.stats b{color:var(--txt);font-weight:600}
+.banner{margin:10px 14px;padding:8px 12px;border:1px solid #5a4a12;background:#2a230b;color:var(--warn);border-radius:var(--radius);display:none}
+.list{padding:12px 14px 60px;display:flex;flex-direction:column;gap:var(--list-gap);max-width:1200px;margin:0 auto}
+.list.skeleton .card.sk{min-height:88px;background:linear-gradient(90deg,var(--panel) 25%,#1a2029 50%,var(--panel) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:var(--radius)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:var(--card-pad) 12px var(--card-pad) 28px;position:relative;box-shadow:0 1px 0 rgba(255,255,255,.03);transition:transform .15s,box-shadow .15s,border-color .15s}
+.card::before{content:"";position:absolute;left:10px;top:12px;bottom:12px;width:4px;border-radius:4px;background:var(--mute)}
+.card.big::before{background:var(--big);box-shadow:0 0 8px rgba(232,93,111,.45)}
+.card.hit::before{background:var(--hit)}
+.card.low::before{background:#3d4554}
+.card.low{opacity:.78}.card.low:hover{opacity:1}
+.card:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:#2f3848}
+.card.kb-focus{outline:2px solid var(--acc);outline-offset:2px}
+.card.new{border-color:rgba(61,139,253,.45)}
+.badge-new{position:absolute;top:8px;right:8px;font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:linear-gradient(135deg,#3d8bfd,#6c5ce7);color:#fff;box-shadow:0 0 12px rgba(61,139,253,.5)}
+.hdr{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:4px;padding-right:48px}
+.b{font-size:11px;padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.b.big{background:var(--big);border-color:var(--big);color:#fff;font-weight:700}
+.b.ev{color:#c9d4e2;background:#1d2430}.b.ev.isbig{color:#ff8a98;border-color:#5a2730}
+.b.low{color:var(--mute)}
+.b.new{background:var(--new);border-color:var(--new);color:#fff;font-weight:700}
+.b.multi{color:var(--up);border-color:#145c3d;background:#0d2a1e}
+.b.lang{color:var(--mute);font-family:Menlo,monospace}
+.score{margin-left:auto;font-family:Menlo,monospace;font-weight:700;font-size:14px}
+.score.big{color:var(--big)}.score.hit{color:var(--hit)}.score.low{color:var(--mute)}
+.title{font-size:17px;font-weight:700;color:#f3f6fa;margin:2px 0;line-height:1.35}
+.title a{color:inherit;text-decoration:none}.title a:hover{color:#fff;text-decoration:underline}
+.alt{color:var(--dim);font-size:13px;margin-bottom:2px}
+.meta{color:var(--dim);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px;align-items:center}
+.meta .t{font-family:Menlo,monospace;cursor:default;border-bottom:1px dotted transparent}
+.meta .t:hover{border-bottom-color:var(--dim)}
+.srcs{display:flex;flex-wrap:wrap;gap:4px}
+.src-tag{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--line);text-decoration:none !important;font-weight:600}
+.src-tag.s0{color:#8fb8ff;border-color:#2a3f5f;background:#152238}
+.src-tag.s1{color:#7ee8b0;border-color:#1f4d38;background:#0f241c}
+.src-tag.s2{color:#ffb86b;border-color:#5a3d12;background:#2a1f0d}
+.src-tag.s3{color:#d4a5ff;border-color:#4a2f5a;background:#221828}
+.px{font-family:Menlo,monospace;font-size:12px;display:flex;gap:12px;flex-wrap:wrap;margin-top:3px}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--dim)}
+.why{color:var(--mute);font-size:12px;margin-top:3px}
+.b.dir-up{color:#fff;background:#13804f;border-color:#13804f;font-weight:700}.b.dir-down{color:#fff;background:#b3263a;border-color:#b3263a;font-weight:700}.b.dir-flat{color:#c9d4e2;background:#2a3140}
+.b.coin{color:#ffd479;border-color:#5a4a12;font-family:Menlo,monospace}
+.impact{font-size:13px;margin-top:4px;color:#c9d4e2}.impact .up{font-weight:700}.impact .down{font-weight:700}
+.sum{color:#8a96a8;font-size:12px;margin-top:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.sum.open{display:block;-webkit-line-clamp:unset}
+.empty{color:var(--dim);padding:40px;text-align:center}
+.kbd-hint{font-size:10px;color:var(--mute);margin-left:8px}
+.movers-block{max-width:1200px;margin:0 auto;padding:12px 14px 0}
+.movers-block h2{font-size:15px;font-weight:700;margin:0 0 4px;color:var(--warn);font-family:Menlo,monospace}
+.movers-meta{color:var(--dim);font-size:12px;margin-bottom:10px;font-family:Menlo,monospace}
+.movers-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:900px){.movers-grid{grid-template-columns:1fr}}
+.movers-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.movers-toolbar input{flex:1;min-width:120px;max-width:200px}
+.movers-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.movers-panel h3{margin:0;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.movers-panel.gain h3{color:var(--up)}.movers-panel.lose h3{color:var(--down)}
+.movers-cards{display:flex;flex-direction:column;gap:6px;padding:8px}
+.mover-card{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);transition:transform .15s,box-shadow .15s,border-color .15s}
+.mover-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:#3a4554}
+.mover-card.pin{border-color:var(--warn);box-shadow:0 0 0 1px rgba(240,185,11,.25)}
+.mover-card .sym{font-family:Menlo,monospace;font-weight:800;font-size:14px}
+.mover-card .pct-big{font-family:Menlo,monospace;font-size:20px;font-weight:800;line-height:1}
+.mover-card .pct-big.up{color:var(--up)}.mover-card .pct-big.down{color:var(--down)}
+.mover-card .vol-line{font-size:11px;color:var(--dim)}
+.vol-chip{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;background:#1a2a20;color:var(--up);border:1px solid #1f4d38;margin-left:4px}
+.vol-bar{height:4px;border-radius:2px;background:#1e2630;margin-top:4px;overflow:hidden}
+.vol-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--up),var(--warn));border-radius:2px}
+.movers-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.movers-table{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
+.movers-table th,.movers-table td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.movers-table tr.mover-row{transition:background .12s}
+.movers-table tr.mover-row:hover{background:#1a2029}
+.movers-table th{color:var(--dim);font-weight:600;white-space:nowrap}
+.movers-table td.sym{font-family:Menlo,monospace;font-weight:700}
+.movers-table td.pct{font-family:Menlo,monospace;font-weight:800;font-size:14px;white-space:nowrap}
+.movers-table td.pct.up{color:var(--up)}.movers-table td.pct.down{color:var(--down)}
+.movers-table td.vol{font-family:Menlo,monospace;color:var(--dim);white-space:nowrap}
+.movers-factors{color:var(--mute);line-height:1.4;max-width:360px}
+.movers-factors a{color:#8fb8ff}
+.movers-note{color:var(--dim);font-size:11px;margin-top:2px}
+.movers-pane{display:none;max-width:1200px;margin:0 auto;padding:12px 14px 60px}
+.movers-pane.active{display:block}
+.movers-sub{margin:10px 0 12px}
+.movers-panel.vol h3{color:var(--warn)}
+.movers-panel.hot h3{color:var(--acc)}
+.movers-panel.oi h3{color:#c9a0ff}
+.view-news .filters,.view-news .stats{display:flex}
+.view-movers .filters,.view-movers .stats{display:none !important}
+.view-movers #list{display:none !important}
+.view-news #moversPane{display:none !important}
+.main-tab.on{background:#1f3350;border-color:var(--acc);color:#fff}
+@media (max-width:700px){
+  .title{font-size:15px}.score{font-size:13px}
+  .bar.filters .filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .search-wrap{min-width:140px;flex:1 1 140px}
+  .movers-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:4px}
+  .movers-grid .movers-panel{min-width:min(92vw,420px);scroll-snap-align:start;flex:0 0 auto}
+  .card{padding-left:24px}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <span class="brand">◆ CRYPTO NEWS WATCH</span>
+    <div class="nav" style="display:flex;gap:4px;margin-left:12px;align-items:center;flex-wrap:wrap">
+      <span class="seg" id="mainViewTabs" title="首页视图">
+        <button type="button" id="tabNews" class="main-tab on">新闻流</button>
+        <button type="button" id="tabMovers" class="main-tab">行情榜</button>
+      </span>
+      <a href="potential.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">潜力币</a>
+      <a href="calendar.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">日历</a>
+      <a href="events.html" class="nav-link" style="padding:4px 12px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--dim);font-size:12px;text-decoration:none">事件追踪</a>
+    </div>
+    <span class="clock" id="clock">--</span>
+    <span class="health" id="health"></span>
+    <span class="sp"></span>
+    <span class="poll" id="poll">加载中…</span>
+  </div>
+  <div class="bar filters">
+    <div class="filter-row">
+      <div class="filter-group">
+        <span class="filter-label">排序</span>
+        <span class="seg filter-tabs"><button type="button" id="sortTime">最新</button><button type="button" id="sortScore">最重要</button></span>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">重要性</span>
+        <span class="seg imp-tabs">
+          <button type="button" data-min="-10" id="impLow">低</button>
+          <button type="button" data-min="5" id="impMid">中</button>
+          <button type="button" data-min="12" id="impHigh">高</button>
+          <button type="button" class="btn-reset" id="impReset" title="恢复默认筛选">重置</button>
+        </span>
+      </div>
+      <label class="filter-group"><span class="filter-label">代币</span><select id="fToken"><option value="">全部</option></select></label>
+      <label class="filter-group"><span class="filter-label">事件</span><select id="fType"><option value="">全部</option></select></label>
+      <label class="filter-group"><span class="filter-label">来源</span><select id="fSource"><option value="">全部</option></select></label>
+      <div class="filter-group search-wrap">
+        <span class="filter-label">搜索</span>
+        <span class="ico" aria-hidden="true">⌕</span>
+        <input type="text" id="fQ" placeholder="标题 / 摘要（Enter）" autocomplete="off">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">密度</span>
+        <span class="seg imp-tabs"><button type="button" id="denCompact">紧凑</button><button type="button" id="denComfort">舒适</button></span>
+      </div>
+      <div class="filter-group more-wrap">
+        <span class="filter-label">更多</span>
+        <button type="button" id="btnMore" aria-expanded="false">⋯ 选项</button>
+        <div class="more-menu" id="moreMenu">
+          <label class="inline"><input type="checkbox" id="fBig"> 只看重大</label>
+          <label class="inline"><input type="checkbox" id="optNotify"> 重大通知</label>
+          <label class="inline"><input type="checkbox" id="optSound"> 声音提醒</label>
+          <button type="button" id="markRead">全部已读</button>
+        </div>
+      </div>
+      <span class="kbd-hint" title="列表快捷键">j/k 移动 · Enter 打开</span>
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+<div class="banner" id="banner"></div>
+<div class="list" id="list"><div class="empty">加载中…</div></div>
+<div class="movers-pane" id="moversPane">
+  <h2 style="font-size:15px;font-weight:700;margin:0 0 4px;color:var(--warn);font-family:Menlo,monospace">◆ 币安行情榜（约每 1 小时更新）</h2>
+  <div class="movers-meta" id="moversMeta"></div>
+  <div class="movers-sub seg" id="moversSubTabs">
+    <button type="button" id="mTabChange" class="on">涨跌幅</button>
+    <button type="button" id="mTabHot">热门</button>
+    <button type="button" id="mTabVol">交易量</button>
+    <button type="button" id="mTabOi">持仓 OI</button>
+  </div>
+  <div class="movers-toolbar">
+    <label class="inline" style="font-size:12px;color:var(--dim)">置顶代币 <input type="text" id="moverPin" placeholder="BTC,ETH（逗号分隔）" size="22"></label>
+  </div>
+  <div id="moversContent"></div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem("nw_"+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("nw_"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+let data = null;
+let movers = null;
+let moversSource = null;
+let mainView = LS.get("main_view", "news");
+let moversSub = LS.get("movers_sub", "change");
+let dataSource = null; // 记录数据来源
+let lastView = LS.get("last_view", null);
+const notified = new Set(LS.get("notified", []));
+const expanded = new Set();
+const st = {
+  sort: LS.get("sort", "time"), token: LS.get("token", ""), type: LS.get("type", ""), source: LS.get("source", ""),
+  big: LS.get("big", false), min: LS.get("min", 5), q: LS.get("q", ""), notify: LS.get("notify", false), sound: LS.get("sound", false)
+};
+let density = LS.get("density", "compact");
+let kbIndex = -1;
+let shownIds = [];
+let moverPins = LS.get("mover_pins", "");
+
+function applyDensity(){
+  document.body.classList.remove("density-compact", "density-comfortable");
+  document.body.classList.add(density === "comfortable" ? "density-comfortable" : "density-compact");
+  $("denCompact")?.classList.toggle("on", density !== "comfortable");
+  $("denComfort")?.classList.toggle("on", density === "comfortable");
+}
+
+function syncImpTabs(){
+  [-10, 5, 12].forEach((m, i) => {
+    const el = $("imp" + (i === 0 ? "Low" : i === 1 ? "Mid" : "High"));
+    if (el) el.classList.toggle("on", st.min === m);
+  });
+}
+
+function showSkeleton(){
+  const list = $("list");
+  list.classList.add("skeleton");
+  list.innerHTML = Array(6).fill('<div class="card sk"></div>').join("");
+}
+
+function srcTagClass(key){
+  let h = 0;
+  const s = String(key || "");
+  for (let i = 0; i < s.length; i++) h = (h + s.charCodeAt(i) * 17) % 4;
+  return "s" + h;
+}
+
+function parseVolRatio(factors){
+  for (const f of factors || []){
+    const m = String(f.text || "").match(/日均的\s*([\d.]+)\s*倍/);
+    if (m) return Math.min(parseFloat(m[1]), 3) / 3;
+  }
+  return null;
+}
+
+function moverPinSet(){
+  return new Set(moverPins.split(/[,，\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean));
+}
+
+function sortMoverRows(rows){
+  const pins = moverPinSet();
+  return [...rows].sort((a, b) => {
+    const pa = pins.has((a.base || "").toUpperCase()) ? 1 : 0;
+    const pb = pins.has((b.base || "").toUpperCase()) ? 1 : 0;
+    return pb - pa;
+  });
+}
+
+function moverCardHtml(r, side){
+  const cls = r.change_pct > 0 ? "up" : r.change_pct < 0 ? "down" : "flat";
+  const sign = r.change_pct > 0 ? "+" : "";
+  const pin = moverPinSet().has((r.base || "").toUpperCase());
+  const ratio = parseVolRatio(r.factors);
+  let volExtra = "";
+  if (ratio != null){
+    volExtra = '<span class="vol-chip">量×' + (ratio * 3).toFixed(1) + "</span>";
+    volExtra += '<div class="vol-bar"><i style="width:' + Math.round(ratio * 100) + '%"></i></div>';
+  }
+  return '<article class="mover-card' + (pin ? " pin" : "") + '">' +
+    '<div><div class="sym">' + esc(r.base) + (pin ? " ★" : "") + '</div><div class="vol-line">' + fmtVol(r.quote_volume) + " · " + fmtPx(r.price) + volExtra + "</div>" +
+    renderFactors(r.factors).replace('class="movers-factors"', 'class="movers-factors" style="font-size:11px;margin-top:4px"') +
+    (r.direction_note ? '<div class="movers-note">' + esc(r.direction_note) + "</div>" : "") + "</div>" +
+    '<div class="pct-big ' + cls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</div></article>";
+}
+
+function moversCardsPanel(title, rows, panelCls, side){
+  const sorted = sortMoverRows(rows);
+  return '<div class="movers-panel ' + panelCls + '"><h3>' + esc(title) + "</h3><div class=\"movers-cards\">" +
+    (sorted.length ? sorted.map(r => moverCardHtml(r, side)).join("") : '<div class="empty" style="padding:16px">暂无</div>') + "</div></div>";
+}
+
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function safeUrl(u){ return /^https?:\/\//i.test(u || "") ? u : "#"; }
+const pad = n => String(n).padStart(2, "0");
+function t8(ts, withDate){ // 显示为 UTC+8
+  const d = new Date((ts + 8*3600) * 1000);
+  const hm = pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes());
+  return withDate === false ? hm : pad(d.getUTCMonth()+1) + "-" + pad(d.getUTCDate()) + " " + hm;
+}
+function nowS(){ return Date.now()/1000; }
+function rel(ts){
+  const s = Math.max(0, Date.now()/1000 - ts);
+  if (s < 60) return "刚刚";
+  if (s < 3600) return Math.floor(s/60) + " 分钟前";
+  if (s < 86400) return Math.floor(s/3600) + " 小时" + (Math.floor(s%3600/60) ? Math.floor(s%3600/60) + " 分" : "") + "前";
+  return Math.floor(s/86400) + " 天前";
+}
+function fmtPx(p){ if (p == null) return "N/A"; return p >= 100 ? "$" + p.toLocaleString("en-US",{maximumFractionDigits:2}) : p >= 1 ? "$" + p.toFixed(4) : "$" + Number(p.toPrecision(5)); }
+function isZh(s){ return /[\u4e00-\u9fff]/.test(s || ""); }
+
+// ---------------------------------------------------------------- data
+async function tryJson(url){
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadData(){
+  const cacheBust = Math.floor(Date.now() / 30000);
+  const localUrl = "./data.json?_=" + cacheBust;
+  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json?_=" + cacheBust;
+
+  // 本地与 gh-pages raw 都取，用 updated 更新的那份（同样新时优先 raw）
+  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
+  if (!local && !remote) throw new Error("data.json 加载失败");
+  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
+    data = remote;
+    dataSource = "GitHub raw (gh-pages 分支)";
+  } else {
+    data = local;
+    dataSource = "本地";
+  }
+
+  if (lastView === null) {
+    lastView = data.updated;
+    LS.set("last_view", lastView);
+  }
+
+  const fresh = data.stories.filter(it =>
+    it.level === "big" && !it.seeded && (it.big_at || 0) > (lastView || 0) && !notified.has(it.id)
+  );
+  if (fresh.length) alertBig(fresh);
+}
+
+async function loadMovers(){
+  const cacheBust = Math.floor(Date.now() / 30000);
+  const localUrl = "./movers.json?_=" + cacheBust;
+  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/movers.json?_=" + cacheBust;
+  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
+  if (!local && !remote) { movers = null; return; }
+  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
+    movers = remote;
+    moversSource = "GitHub raw";
+  } else {
+    movers = local;
+    moversSource = "本地";
+  }
+}
+
+function fmtVol(v){
+  if (v == null || !isFinite(v)) return "—";
+  if (v >= 1e9) return "$" + (v / 1e9).toFixed(2) + "B";
+  if (v >= 1e6) return "$" + (v / 1e6).toFixed(1) + "M";
+  if (v >= 1e3) return "$" + (v / 1e3).toFixed(0) + "K";
+  return "$" + v.toFixed(0);
+}
+
+function renderFactors(factors){
+  if (!factors || !factors.length) return '<span class="movers-factors">—</span>';
+  return '<ul class="movers-factors" style="margin:0;padding-left:14px">' + factors.map(f => {
+    let t = esc(f.text || "");
+    if (f.url && /^https?:\/\//i.test(f.url)) t = '<a href="' + esc(safeUrl(f.url)) + '" target="_blank" rel="noopener noreferrer">' + t + " ↗</a>";
+    return "<li>" + t + "</li>";
+  }).join("") + "</ul>";
+}
+
+function pctCell(r){
+  const sign = r.change_pct > 0 ? "+" : "";
+  const cls = r.change_pct > 0 ? "up" : r.change_pct < 0 ? "down" : "flat";
+  return '<td class="pct ' + cls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</td>";
+}
+
+function moversTable(rows, side, extraCol){
+  const pctCls = side === "gain" ? "up" : side === "lose" ? "down" : null;
+  let head = "<th>币种</th><th>价格</th><th>24h</th><th>成交额</th>";
+  if (extraCol) head += "<th>" + esc(extraCol.label) + "</th>";
+  head += "<th>因素 / 摘要</th>";
+  let h = '<div class="movers-scroll"><table class="movers-table"><thead><tr>' + head + "</tr></thead><tbody>";
+  for (const r of sortMoverRows(rows)){
+    const cls = pctCls || (r.change_pct > 0 ? "up" : r.change_pct < 0 ? "down" : "flat");
+    const sign = r.change_pct > 0 ? "+" : "";
+    const pin = moverPinSet().has((r.base || "").toUpperCase());
+    const ratio = parseVolRatio(r.factors);
+    h += '<tr class="mover-row' + (pin ? " pin" : "") + '"><td class="sym">' + esc(r.base) + (pin ? " ★" : "") + "</td><td>" + fmtPx(r.price) + '</td><td class="pct ' + cls + '">' + sign + Number(r.change_pct).toFixed(2) + "%</td>";
+    h += '<td class="vol">' + fmtVol(r.quote_volume);
+    if (ratio != null) h += '<span class="vol-chip">×' + (ratio * 3).toFixed(1) + "</span>";
+    h += "</td>";
+    if (extraCol) h += "<td class=\"vol\">" + esc(extraCol.fmt(r)) + "</td>";
+    h += "<td>" + renderFactors(r.factors);
+    if (r.direction_note) h += '<div class="movers-note">' + esc(r.direction_note) + "</div>";
+    h += "</td></tr>";
+  }
+  return h + "</tbody></table></div>";
+}
+
+function hasMoversData(){
+  if (!movers) return false;
+  return (movers.gainers?.length || movers.losers?.length || movers.hot?.length
+    || movers.volume_leaders?.length || movers.oi_leaders?.length);
+}
+
+function applyMainView(){
+  document.body.classList.remove("view-news", "view-movers");
+  document.body.classList.add(mainView === "movers" ? "view-movers" : "view-news");
+  $("tabNews").classList.toggle("on", mainView === "news");
+  $("tabMovers").classList.toggle("on", mainView === "movers");
+  const pane = $("moversPane");
+  if (mainView === "movers" && hasMoversData()) pane.classList.add("active");
+  else pane.classList.remove("active");
+}
+
+function setMainView(v){
+  mainView = v;
+  LS.set("main_view", v);
+  applyMainView();
+  if (v === "movers") renderMovers();
+}
+
+function absorbMainViewFromUrl(){
+  const q = new URLSearchParams(location.search).get("view");
+  let v = q === "movers" || q === "news" ? q : null;
+  if (!v){
+    const h = (location.hash || "").replace(/^#/, "");
+    if (h === "movers" || h === "news") v = h;
+  }
+  if (!v) return;
+  mainView = v;
+  LS.set("main_view", v);
+  try{
+    const u = new URL(location.href);
+    u.searchParams.delete("view");
+    if (u.hash === "#movers" || u.hash === "#news") u.hash = "";
+    history.replaceState(null, "", u.pathname + u.search + u.hash);
+  }catch(e){}
+}
+
+function setMoversSub(v){
+  moversSub = v;
+  LS.set("movers_sub", v);
+  $("mTabChange").classList.toggle("on", v === "change");
+  $("mTabHot").classList.toggle("on", v === "hot");
+  $("mTabVol").classList.toggle("on", v === "vol");
+  $("mTabOi").classList.toggle("on", v === "oi");
+  renderMovers();
+}
+
+function renderMovers(){
+  if (!hasMoversData()){
+    applyMainView();
+    return;
+  }
+  const srcMap = { fapi_usdt_perp: "Binance USDT 永续", spot_usdt: "Binance 现货 USDT（永续不可用时的回退）" };
+  let meta = "快照 " + esc(movers.updated_utc8 || "") + " (UTC+8)";
+  meta += " · 约每 " + (movers.refresh_hours || 1) + " 小时刷新";
+  meta += " · 数据源 " + esc(srcMap[movers.price_source] || movers.price_source || "");
+  if (movers.min_quote_volume_usd) meta += " · 最低成交额 " + fmtVol(movers.min_quote_volume_usd);
+  if (moversSource) meta += " · " + esc(moversSource);
+  if (movers.oi_note) meta += " · " + esc(movers.oi_note);
+  $("moversMeta").innerHTML = meta;
+  const box = $("moversContent");
+  if (moversSub === "change"){
+    box.innerHTML =
+      '<div class="movers-grid">' +
+      moversCardsPanel("涨幅榜 Top " + (movers.gainers?.length || 0), movers.gainers || [], "gain", "gain") +
+      moversCardsPanel("跌幅榜 Top " + (movers.losers?.length || 0), movers.losers || [], "lose", "lose") +
+      "</div>";
+    box.innerHTML += '<p class="movers-note" style="margin-top:8px">涨跌幅榜含量能/资金费率/OI 异动等完整因素分析；热门与成交额榜复用新闻/事件匹配摘要。</p>';
+  } else if (moversSub === "hot"){
+    const hotExtra = { label: "热度分", fmt: r => {
+      const score = (r.quote_volume || 0) * (1 + Math.abs(r.change_pct || 0) / 100);
+      return score >= 1e9 ? (score / 1e9).toFixed(2) + "B" : (score / 1e6).toFixed(1) + "M";
+    }};
+    box.innerHTML = '<div class="movers-panel hot"><h3>热门榜 Top ' + (movers.hot?.length || 0) + "（成交额×波动）</h3>" + moversTable(movers.hot || [], null, hotExtra) + "</div>";
+  } else if (moversSub === "vol"){
+    box.innerHTML = '<div class="movers-panel vol"><h3>24h 交易量榜 Top ' + (movers.volume_leaders?.length || 0) + "</h3>" + moversTable(movers.volume_leaders || [], null) + "</div>";
+  } else if (moversSub === "oi"){
+    if (!movers.oi_available && !(movers.oi_leaders?.length)){
+      box.innerHTML = '<div class="empty">' + esc(movers.oi_note || "当前数据源暂无持仓榜") + "</div>";
+    } else {
+      const oiCol = { label: "持仓(OI)", fmt: r => fmtVol(r.open_interest_usd) };
+      box.innerHTML = '<div class="movers-panel oi"><h3>永续持仓 OI Top ' + (movers.oi_leaders?.length || 0) + "（名义 USDT）</h3>" + moversTable(movers.oi_leaders || [], null, oiCol) + "</div>";
+      box.innerHTML += '<p class="movers-note" style="margin-top:8px">OI 在成交额靠前池内逐币查询 Binance openInterest，非全市场 exhaustive 扫描。</p>';
+    }
+  }
+  applyMainView();
+}
+
+// ---------------------------------------------------------------- notify
+let audioCtx = null;
+function beep(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime;
+    [0, 0.18, 0.36].forEach((dt, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "square"; o.frequency.value = i === 2 ? 1320 : 880;
+      g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.12, t0 + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.15);
+      o.connect(g).connect(audioCtx.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.16);
+    });
+  }catch(e){}
+}
+function alertBig(list){
+  for (const it of list){
+    notified.add(it.id);
+    if (st.notify && "Notification" in window && Notification.permission === "granted"){
+      try{
+        const n = new Notification("【重大】" + (it.event_label || "") + " · " + it.score, { body: it.title + (it.multi ? "\n多源确认: " + it.sources.join("/") : ""), tag: it.id });
+        n.onclick = () => { window.focus(); window.open(safeUrl(it.url), "_blank", "noopener"); };
+      }catch(e){}
+    }
+  }
+  LS.set("notified", Array.from(notified).slice(-500));
+  if (st.sound) beep();
+}
+
+// ---------------------------------------------------------------- render
+function renderHealth(){
+  if (!data) return;
+  const h = $("health"); h.innerHTML = "";
+  const names = {ok:"正常", warn:"有失败", down:"故障", pending:"等待首次", disabled:"已禁用"};
+  for (const [k, s] of Object.entries(data.sources)){
+    if (!s.enabled) continue;
+    const c = document.createElement("span"); c.className = "chip";
+    const tip = [s.label + "：" + names[s.health], "最近成功 " + (s.last_ok_utc8 || "无") + " (UTC+8)",
+      "最近失败 " + (s.last_fail_utc8 || "无"), "连续失败 " + s.fails + " 次", "上次返回 " + (s.last_count == null ? "-" : s.last_count) + " 条 / 新 " + (s.last_new == null ? "-" : s.last_new) + " 条"];
+    if (s.last_error) tip.push("错误: " + s.last_error);
+    c.title = tip.join("\n");
+    c.innerHTML = '<span class="dot ' + esc(s.health) + '"></span>' + esc(s.label) + (s.fails ? ' <span style="color:var(--down)">×' + s.fails + "</span>" : "");
+    h.appendChild(c);
+  }
+  renderPoll();
+}
+
+function renderPoll(){
+  if (!data) return;
+  const age = nowS() - data.updated;
+  const ageMin = Math.floor(age / 60);
+  const repo = window.location.pathname.split('/')[1] || 'crypto-news';
+  const workflowUrl = `https://github.com/gaopfEditer/${repo}/actions/workflows/update-news.yml`;
+  
+  let txt = `最后更新 ${data.updated_utc8} (UTC+8)`;
+  if (age < 3600) {
+    txt += ` · ${ageMin} 分钟前`;
+  } else {
+    txt += ` · ${Math.floor(age / 3600)} 小时前`;
+  }
+  txt += ` · `;
+  
+  const poll = $("poll");
+  poll.textContent = txt;
+  
+  const link = document.createElement('a');
+  link.href = workflowUrl;
+  link.textContent = '查看工作流';
+  link.target = '_blank';
+  link.style.color = 'var(--acc)';
+  poll.appendChild(link);
+  
+  // 显示数据源
+  if (dataSource) {
+    const src = document.createElement('span');
+    src.textContent = ` · 数据: ${dataSource}`;
+    src.style.color = 'var(--mute)';
+    src.style.fontSize = '11px';
+    poll.appendChild(src);
+  }
+  
+  const down = Object.values(data.sources).filter(s => s.enabled && s.health === "down");
+  const b = $("banner");
+  if (down.length){ 
+    b.style.display = "block"; 
+    b.textContent = "⚠ 数据源故障：" + down.map(s => s.label + "（" + (s.last_error || "无成功记录") + "）").join("；"); 
+  } else {
+    b.style.display = "none";
+  }
+}
+
+function passes(it){
+  if (st.big && it.level !== "big") return false;
+  if (it.score < st.min && !(st.big && it.level === "big")) return false;
+  if (st.token && !it.tokens.includes(st.token)) return false;
+  if (st.type && (it.event || "none") !== st.type) return false;
+  if (st.source && !it.members.some(m => m.source === st.source)) return false;
+  if (st.q){ const q = st.q.toLowerCase(); if (!((it.title + " " + (it.alt_title || "") + " " + (it.summary || "")).toLowerCase().includes(q))) return false; }
+  return true;
+}
+
+function card(it, idx){
+  const isNew = lastView !== null && it.first_seen > lastView;
+  const cls = ["card", it.level, isNew ? "new" : "", idx === kbIndex ? "kb-focus" : ""].join(" ");
+  const evBig = data.meta.events.find(e => e.key === it.event && e.big);
+  let h = '<div class="' + cls + '" data-id="' + esc(it.id) + '" data-idx="' + idx + '" tabindex="-1">';
+  if (isNew) h += '<span class="badge-new">NEW</span>';
+  let h2 = '<div class="hdr">';
+  if (it.level === "big") h2 += '<span class="b big">重大</span>';
+  h2 += '<span class="b ev' + (evBig ? " isbig" : "") + '">' + esc(it.event_label || (it.tokens.length ? "关注代币" : "其他")) + "</span>";
+  const dcls = {"利好":"dir-up","利空":"dir-down"}[it.direction] || "dir-flat";
+  if (it.impact) h2 += '<span class="b ' + dcls + '" title="' + esc(it.direction_reason || "") + '">' + esc(it.direction || "中性") + "</span>";
+  if (it.impact_label) h2 += '<span class="b ev isbig" title="流动性/供给事件">' + esc(it.impact_label) + "</span>";
+  for (const c of (it.coins || []).filter(c => !(it.tokens || []).includes(c)).slice(0, 4)) h2 += '<span class="b coin">$' + esc(c) + "</span>";
+  if (it.level === "low") h2 += '<span class="b low">低分</span>';
+  if (it.multi) h2 += '<span class="b multi" title="' + esc(it.sources.join(" / ")) + '">多源确认 ×' + it.sources.length + "</span>";
+  for (const t of it.tokens.slice(0, 5)) h2 += '<span class="b">' + esc(t) + "</span>";
+  h2 += '<span class="b lang">' + (isZh(it.title) ? "中" : "EN") + (it.alt_title ? "/" + (isZh(it.alt_title) ? "中" : "EN") : "") + "</span>";
+  h2 += '<span class="score ' + it.level + '" title="阈值 ' + data.meta.threshold + '">' + Number(it.score).toFixed(it.score % 1 ? 1 : 0) + "</span></div>";
+  h += h2;
+  h += '<div class="title"><a class="card-link" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(it.title) + "</a></div>";
+  if (it.alt_title) h += '<div class="alt">' + esc(it.alt_title) + "</div>";
+  const absPub = t8(it.ts) + " (UTC+8)";
+  const absDet = t8(it.first_seen) + " (UTC+8)";
+  h += '<div class="meta"><span class="t" title="发布 ' + esc(absPub) + '">' + rel(it.ts) + "</span>";
+  h += '<span class="t" title="检测 ' + esc(absDet) + (it.seeded ? " · 启动回填" : "") + '">检测 ' + rel(it.first_seen) + "</span>";
+  const seenCnt = {};
+  h += '<span class="srcs">';
+  for (const m of it.members){
+    seenCnt[m.label] = (seenCnt[m.label] || 0) + 1;
+    const lbl = m.label + (seenCnt[m.label] > 1 ? "#" + seenCnt[m.label] : "");
+    const sk = srcTagClass(m.source || m.label);
+    h += '<a class="src-tag ' + sk + '" href="' + esc(safeUrl(m.url)) + '" target="_blank" rel="noopener noreferrer" title="' + esc(absPub + " · " + m.title) + '">' + esc(lbl) + "</a>";
+  }
+  h += "</span></div>";
+  const px = Object.entries(it.prices || {});
+  if (px.length){
+    h += '<div class="px">';
+    for (const [t, p] of px){
+      const c = p.chg1h == null ? "flat" : p.chg1h > 0 ? "up" : p.chg1h < 0 ? "down" : "flat";
+      h += '<span title="检测时价格（' + esc(p.src) + "，" + t8(p.at) + ' UTC+8）">' + esc(t) + " " + fmtPx(p.price) + ' <span class="' + c + '">1h ' + (p.chg1h == null ? "N/A" : (p.chg1h > 0 ? "+" : "") + p.chg1h.toFixed(2) + "%") + '</span> <span style="color:var(--mute)">' + esc(p.src) + " @" + t8(p.at, false) + "</span></span>";
+    }
+    h += "</div>";
+  }
+  if (it.impact_tag){
+    const dc = {"利好":"up","利空":"down"}[it.direction] || "flat";
+    h += '<div class="impact"><span class="' + dc + '">' + esc(it.impact_tag) + "</span>" + (it.direction_reason ? " · " + esc(it.direction_reason) : "") + "</div>";
+  }
+  if (it.reasons && it.reasons.length) h += '<div class="why">原因：' + esc(it.reasons.join("；")) + "</div>";
+  if (it.summary) h += '<div class="sum' + (expanded.has(it.id) ? " open" : "") + '" data-sum="' + esc(it.id) + '">' + esc(it.summary) + "</div>";
+  return h + "</div>";
+}
+
+function render(){
+  if (!data) return;
+  
+  const rank = {big: 2, hit: 1, low: 0};
+  const all = data.stories;
+  const shown = all.filter(passes);
+  if (st.sort === "score") shown.sort((a, b) => rank[b.level] - rank[a.level] || b.score - a.score || b.ts - a.ts);
+  else shown.sort((a, b) => b.ts - a.ts);
+  
+  // 代币下拉
+  const cnt = {};
+  for (const it of all) for (const t of it.tokens) cnt[t] = (cnt[t] || 0) + 1;
+  const sel = $("fToken"), cur = st.token;
+  const toks = Array.from(new Set([...data.meta.tokens.filter(t => t.origin === "config").map(t => t.ticker), ...Object.keys(cnt)]));
+  toks.sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0) || a.localeCompare(b));
+  const optsHtml = '<option value="">全部</option>' + toks.map(t => '<option value="' + esc(t) + '">' + esc(t) + " (" + (cnt[t] || 0) + ")</option>").join("");
+  if (sel.dataset.h !== optsHtml){ sel.innerHTML = optsHtml; sel.dataset.h = optsHtml; }
+  sel.value = cur;
+  
+  const nNew = all.filter(it => it.first_seen > lastView).length;
+  $("stats").innerHTML = "显示 <b>" + shown.length + "</b> / 共 <b>" + all.length + "</b>（近 " + data.retain_hours + "h）" +
+    " · 重大 <b style='color:var(--big)'>" + data.stats.big + "</b> · 命中 <b style='color:var(--hit)'>" + data.stats.hit + "</b> · 低分 " + data.stats.low +
+    " · NEW <b style='color:var(--new)'>" + nNew + "</b>" + " · 阈值 " + data.meta.threshold + " / 重大 " + data.meta.big_threshold;
+  document.title = (nNew ? "(" + nNew + ") " : "") + "加密新闻看板";
+  
+  const list = $("list");
+  list.classList.remove("skeleton");
+  shownIds = shown.map(it => it.id);
+  if (kbIndex >= shown.length) kbIndex = shown.length ? shown.length - 1 : -1;
+  list.innerHTML = shown.length ? shown.map((it, i) => card(it, i)).join("") : '<div class="empty">' + (all.length ? "没有符合筛选条件的条目（试试选「低」重要性）" : "暂无条目") + "</div>";
+  focusKbCard(false);
+  renderHealth();
+}
+
+function focusKbCard(scroll){
+  document.querySelectorAll(".card.kb-focus").forEach(el => el.classList.remove("kb-focus"));
+  if (kbIndex < 0 || mainView !== "news") return;
+  const el = document.querySelector('.card[data-idx="' + kbIndex + '"]');
+  if (!el) return;
+  el.classList.add("kb-focus");
+  if (scroll) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function openKbCard(){
+  const el = document.querySelector('.card[data-idx="' + kbIndex + '"] .card-link');
+  if (el) window.open(el.href, "_blank", "noopener");
+}
+
+// ---------------------------------------------------------------- controls
+function bindControls(){
+  const setSort = s => { st.sort = s; LS.set("sort", s); $("sortTime").classList.toggle("on", s === "time"); $("sortScore").classList.toggle("on", s === "score"); render(); };
+  $("sortTime").onclick = () => setSort("time"); $("sortScore").onclick = () => setSort("score"); setSort(st.sort);
+  $("fToken").onchange = e => { st.token = e.target.value; LS.set("token", st.token); render(); };
+  
+  // 事件类型下拉
+  const ft = $("fType");
+  for (const e of data.meta.events){ const o = document.createElement("option"); o.value = e.key; o.textContent = (e.big ? "★ " : "") + e.label; ft.appendChild(o); }
+  const o2 = document.createElement("option"); o2.value = "none"; o2.textContent = "无事件(仅代币)"; ft.appendChild(o2);
+  ft.value = st.type;
+  ft.onchange = e => { st.type = e.target.value; LS.set("type", st.type); render(); };
+  
+  // 来源下拉
+  const fs = $("fSource");
+  for (const s of data.meta.sources){ if (!s.enabled) continue; const o = document.createElement("option"); o.value = s.key; o.textContent = s.label; fs.appendChild(o); }
+  fs.value = st.source;
+  fs.onchange = e => { st.source = e.target.value; LS.set("source", st.source); render(); };
+  
+  $("fBig").checked = st.big; $("fBig").onchange = e => { st.big = e.target.checked; LS.set("big", st.big); render(); };
+  const setMin = m => { st.min = m; LS.set("min", st.min); syncImpTabs(); render(); };
+  $("impLow").onclick = () => setMin(-10);
+  $("impMid").onclick = () => setMin(5);
+  $("impHigh").onclick = () => setMin(12);
+  $("impReset").onclick = () => {
+    st.token = ""; st.type = ""; st.source = ""; st.big = false; st.min = 5; st.q = "";
+    LS.set("token", ""); LS.set("type", ""); LS.set("source", ""); LS.set("big", false); LS.set("min", 5); LS.set("q", "");
+    $("fToken").value = ""; $("fType").value = ""; $("fSource").value = ""; $("fQ").value = "";
+    syncImpTabs(); render();
+  };
+  syncImpTabs();
+  $("fQ").value = st.q || "";
+  let qT;
+  const applyQ = () => { st.q = $("fQ").value.trim(); LS.set("q", st.q); render(); };
+  $("fQ").oninput = () => { clearTimeout(qT); qT = setTimeout(applyQ, 200); };
+  $("fQ").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(qT); applyQ(); } };
+  $("btnMore").onclick = e => { e.stopPropagation(); $("moreMenu").classList.toggle("open"); $("btnMore").setAttribute("aria-expanded", $("moreMenu").classList.contains("open")); };
+  document.addEventListener("click", e => { if (!e.target.closest(".more-wrap")) $("moreMenu")?.classList.remove("open"); });
+  $("denCompact").onclick = () => { density = "compact"; LS.set("density", density); applyDensity(); };
+  $("denComfort").onclick = () => { density = "comfortable"; LS.set("density", density); applyDensity(); };
+  applyDensity();
+  const pinEl = $("moverPin");
+  if (pinEl){ pinEl.value = moverPins; pinEl.onchange = () => { moverPins = pinEl.value.trim(); LS.set("mover_pins", moverPins); renderMovers(); }; }
+  $("optNotify").checked = st.notify && "Notification" in window && Notification.permission === "granted";
+  $("optNotify").onchange = async e => {
+    if (e.target.checked){
+      if (!("Notification" in window)){ alert("此浏览器不支持系统通知"); e.target.checked = false; return; }
+      const p = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (p !== "granted"){ alert("通知权限未授予（可在浏览器网站设置中开启）"); e.target.checked = false; }
+    }
+    st.notify = e.target.checked; LS.set("notify", st.notify);
+  };
+  $("optSound").checked = st.sound;
+  $("optSound").onchange = e => { st.sound = e.target.checked; LS.set("sound", st.sound); if (st.sound) beep(); };
+  $("markRead").onclick = () => { lastView = data.updated; LS.set("last_view", lastView); render(); };
+  $("tabNews").onclick = () => setMainView("news");
+  $("tabMovers").onclick = () => setMainView("movers");
+  $("mTabChange").onclick = () => setMoversSub("change");
+  $("mTabHot").onclick = () => setMoversSub("hot");
+  $("mTabVol").onclick = () => setMoversSub("vol");
+  $("mTabOi").onclick = () => setMoversSub("oi");
+  setMoversSub(moversSub);
+  $("list").addEventListener("click", e => {
+    const s = e.target.closest("[data-sum]"); if (!s) return;
+    const id = s.dataset.sum; if (expanded.has(id)) expanded.delete(id); else expanded.add(id); s.classList.toggle("open");
+  });
+  
+  const saveView = () => { if (data) LS.set("last_view", data.updated); };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveView(); });
+  window.addEventListener("pagehide", saveView);
+  document.addEventListener("keydown", e => {
+    if (mainView !== "news" || !data) return;
+    const tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable) return;
+    const n = shownIds.length;
+    if (!n) return;
+    if (e.key === "j"){ e.preventDefault(); kbIndex = kbIndex < 0 ? 0 : Math.min(kbIndex + 1, n - 1); render(); focusKbCard(true); }
+    else if (e.key === "k"){ e.preventDefault(); kbIndex = kbIndex <= 0 ? 0 : kbIndex - 1; render(); focusKbCard(true); }
+    else if (e.key === "Enter" && kbIndex >= 0){ e.preventDefault(); openKbCard(); }
+  });
+}
+
+setInterval(() => { $("clock").textContent = t8(nowS()).slice(6) + ":" + pad(Math.floor(nowS()) % 60) + " UTC+8"; }, 1000);
+
+(async function init(){
+  showSkeleton();
+  applyDensity();
+  try{
+    await loadData();
+    await loadMovers();
+    bindControls();
+    absorbMainViewFromUrl();
+    applyMainView();
+    renderMovers();
+    render();
+    // 每60秒重新加载数据
+    setInterval(async () => {
+      try{ await loadData(); await loadMovers(); renderMovers(); render(); }catch(e){ console.error("重新加载失败:", e); }
+    }, 60000);
+  }catch(e){
+    $("list").innerHTML = '<div class="empty">⚠ 加载失败: ' + esc(e.message) + '</div>';
+  }
+})();
+</script>
+</body>
+</html>
