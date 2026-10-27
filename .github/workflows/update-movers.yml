@@ -2,18 +2,14 @@ name: 更新币安涨跌榜
 
 on:
   schedule:
-    # 每小时整点（UTC）→ 北京时间每小时 :00
-    - cron: '0 * * * *'
+    # 每小时 :17（UTC），与新闻 workflow 错开整点，减轻同时排队
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   movers:
@@ -54,9 +50,28 @@ jobs:
           cp events.html publish/ 2>/dev/null || true
           cp unlocks.html publish/ 2>/dev/null || true
           cp potential.html publish/ 2>/dev/null || true
-          # 潜力币：当前为仓库静态假数据；后续可在上一步由 auto-script 生成 publish/potential.json
           cp potential.json publish/ 2>/dev/null || true
           echo "" > publish/.nojekyll
+
+      - name: 上传发布目录
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh-pages-payload
+          path: publish/
+          retention-days: 1
+
+  deploy:
+    needs: movers
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+    steps:
+      - name: 下载发布目录
+        uses: actions/download-artifact@v4
+        with:
+          name: gh-pages-payload
+          path: publish
 
       - name: 部署 gh-pages
         uses: peaceiris/actions-gh-pages@v3
@@ -64,7 +79,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./publish
           publish_branch: gh-pages
-          force_orphan: true
+          force_orphan: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: '更新币安涨跌榜 movers.json'

@@ -520,6 +520,7 @@ def run(args):
         "market": market,
         "min_quote_volume_usd": args.min_volume,
         "refresh_hours": 1,
+        "refresh_note": "计划约每小时更新；GitHub Actions 定时与发布队列可能导致实际间隔数小时",
         "gainers": gainers,
         "losers": losers,
         "hot": hot,

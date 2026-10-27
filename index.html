@@ -502,7 +502,8 @@ function renderMovers(){
   }
   const srcMap = { fapi_usdt_perp: "Binance USDT 永续", spot_usdt: "Binance 现货 USDT（永续不可用时的回退）" };
   let meta = "快照 " + esc(movers.updated_utc8 || "") + " (UTC+8)";
-  meta += " · 约每 " + (movers.refresh_hours || 1) + " 小时刷新";
+  meta += " · 计划约每 " + (movers.refresh_hours || 1) + " 小时刷新";
+  if (movers.refresh_note) meta += "（" + esc(movers.refresh_note) + "）";
   meta += " · 数据源 " + esc(srcMap[movers.price_source] || movers.price_source || "");
   if (movers.min_quote_volume_usd) meta += " · 最低成交额 " + fmtVol(movers.min_quote_volume_usd);
   if (moversSource) meta += " · " + esc(moversSource);

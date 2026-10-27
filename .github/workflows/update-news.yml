@@ -2,8 +2,8 @@ name: 更新加密新闻数据
 
 on:
   schedule:
-    # 每15分钟运行一次（GitHub Actions 的定时任务可能会延迟几分钟）
-    - cron: '*/15 * * * *'
+    # 每 30 分钟（:03 / :33 UTC）；避免 */15 在 Actions 排队时堆积过多 pending
+    - cron: '3,33 * * * *'
   workflow_dispatch:
     inputs:
       force_seed:
@@ -16,10 +16,6 @@ permissions:
   contents: write
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   update:
@@ -38,7 +34,6 @@ jobs:
       - name: 获取现有数据
         id: get-data
         run: |
-          # 尝试从 gh-pages 分支获取之前的状态
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
             git fetch origin gh-pages
             if git show origin/gh-pages:state.json >/dev/null 2>&1; then
@@ -68,8 +63,12 @@ jobs:
 
       - name: 准备部署
         run: |
-          # 生成物只发布到 gh-pages，不要 git add / commit 回 main
           mkdir -p deploy
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            git fetch origin gh-pages
+            git archive origin/gh-pages | tar -x -C deploy
+            echo "✓ 已合并 gh-pages 现有内容（避免 force_orphan 丢失 movers/事件缓存等）"
+          fi
           cp data.json deploy/
           cp state.json deploy/
           cp calendar.json deploy/
@@ -79,31 +78,33 @@ jobs:
           cp unlocks.html deploy/
           cp potential.html deploy/ 2>/dev/null || true
           cp potential.json deploy/ 2>/dev/null || true
-          
-          # 保留 gh-pages 涨跌榜与其它生成物
-          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
-            git fetch origin gh-pages
-            if git show origin/gh-pages:movers.json >/dev/null 2>&1; then
-              git show origin/gh-pages:movers.json > deploy/movers.json
-              echo "✓ 已保留 movers.json"
-            fi
-          fi
-          
-          # 保留 gh-pages 上事件库与各 tracker 缓存（ls-tree 无匹配时仍 exit 0，须检查是否有输出）
-          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
-            git fetch origin gh-pages
-            if [ -n "$(git ls-tree origin/gh-pages events 2>/dev/null)" ]; then
-              git archive origin/gh-pages events | tar -x -C deploy/
-              echo "✓ 已保留 events/ 事件库"
-            fi
-            if [ -n "$(git ls-tree origin/gh-pages event_cache 2>/dev/null)" ]; then
-              git archive origin/gh-pages event_cache | tar -x -C deploy/
-              echo "✓ 已保留 event_cache/"
-            fi
-          fi
-          
-          # 创建 _config.yml 禁用 Jekyll
           echo "" > deploy/.nojekyll
+
+      - name: 输出摘要
+        run: |
+          echo "### 📰 新闻更新完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat summary.md >> $GITHUB_STEP_SUMMARY || echo "无摘要数据" >> $GITHUB_STEP_SUMMARY
+
+      - name: 上传发布目录
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh-pages-payload
+          path: deploy/
+          retention-days: 1
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-publish
+      cancel-in-progress: false
+    steps:
+      - name: 下载发布目录
+        uses: actions/download-artifact@v4
+        with:
+          name: gh-pages-payload
+          path: deploy
 
       - name: 部署到 GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -111,13 +112,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./deploy
           publish_branch: gh-pages
-          force_orphan: true
+          force_orphan: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: '更新新闻数据 ${{ steps.fetch.outputs.summary }}'
-
-      - name: 输出摘要
-        run: |
-          echo "### 📰 新闻更新完成" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat summary.md >> $GITHUB_STEP_SUMMARY || echo "无摘要数据" >> $GITHUB_STEP_SUMMARY
+          commit_message: '更新新闻数据'
