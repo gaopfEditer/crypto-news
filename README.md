@@ -113,7 +113,7 @@ schedule:
    - `data.json`：前端读取的数据
    - `state.json`：保存状态供下次运行使用
    - `calendar.json`：日历事件
-7. **部署到 GitHub Pages**：workflow 推到 `gh-pages` 分支；若站点从 `main` 发布，前端会从 `gh-pages` 的 raw 地址取最新数据
+7. **部署到 GitHub Pages**：workflow 推到 `gh-pages` 分支。**Pages 发布源必须设为 `gh-pages` 分支**，否则站点根路径下 `movers.json` / `data.json` 会 404（详见 [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)）
 
 ## 📝 评分规则
 
