@@ -145,7 +145,7 @@ def write_snapshot(out_dir, deploy_unlocks_dir, min_keep_ratio=0.8):
     return snap, skipped
 
 
-def rebuild_index(deploy_unlocks_dir, keep_days=60):
+def rebuild_index(deploy_unlocks_dir, keep_days=30):
     dates = []
     for fn in os.listdir(deploy_unlocks_dir):
         if fn.endswith(".json") and fn != "index.json" and len(fn) == 15:

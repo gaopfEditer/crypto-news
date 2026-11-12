@@ -91,7 +91,7 @@ schedule:
 
 ```json
 "dashboard": {
-  "retain_hours": 48,  # 保留最近 48 小时
+  "retain_hours": 336,  # 新闻保留近 2 周（336 小时）；event_cache 等见 cache_keep_days（默认 30 天）
   "seed_hours": 12     # 首次回填 12 小时
 }
 ```

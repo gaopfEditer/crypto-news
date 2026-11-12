@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Restore / publish tracker cache dirs on gh-pages under event_cache/<type>/."""
 import argparse
+import json
 import os
+import re
 import shutil
 import time
+from datetime import datetime, timezone
 
 DEFAULT_KEEP_DAYS = 30
+_MS_IN_NAME = re.compile(r"_(\d{12,14})\.json$")
+_ISO_PREFIX = re.compile(r"^(20\d{2}-\d{2}-\d{2})")
 
 # Upbit trade list/detail JSON is identical for delist vs spot_listing trackers.
 _UPBIT_RAW_PREFIX = "upbit_"
@@ -81,28 +86,104 @@ def publish(local_pairs, publish_dir, keep_days=DEFAULT_KEEP_DAYS):
         if os.path.isdir(dest):
             shutil.rmtree(dest)
         shutil.copytree(local, dest)
-        _trim_old(dest, keep_days)
+        n = _trim_old(dest, keep_days)
+        if n:
+            print(f"trimmed event_cache/{name}: {n} old files/entries (keep_days={keep_days})")
     # drop legacy path after migration
     leg = os.path.join(publish_dir, "unlock_cache")
     if os.path.isdir(leg):
         shutil.rmtree(leg, ignore_errors=True)
 
 
-def _trim_old(root, keep_days):
-    cutoff = time.time() - keep_days * 86400
-    cmc = os.path.join(root, "cmc_snapshots")
-    if not os.path.isdir(cmc):
-        return
-    for fn in os.listdir(cmc):
-        if not fn.endswith(".json") or len(fn) < 8:
-            continue
+def _file_epoch(path, fn):
+    """Best-effort age signal: CMC snap name, embedded ms, else mtime."""
+    if len(fn) >= 8 and fn.endswith(".json") and fn[:8].isdigit():
         try:
             y, mo, d = int(fn[:4]), int(fn[4:6]), int(fn[6:8])
-            ep = time.mktime((y, mo, d, 12, 0, 0, 0, 0, -1))
-        except ValueError:
+            return time.mktime((y, mo, d, 12, 0, 0, 0, 0, -1))
+        except (ValueError, OverflowError):
+            pass
+    m = _MS_IN_NAME.search(fn)
+    if m:
+        ms = int(m.group(1))
+        # sane window ~2018–2035
+        if 1514764800000 <= ms <= 2082758400000:
+            return ms / 1000.0
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return time.time()
+
+
+def _prune_odaily_index(path, cutoff):
+    """Drop odaily_index entries older than cutoff (ISO timestamp in value[1])."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            obj = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return 0
+    if not isinstance(obj, dict):
+        return 0
+    keep = {}
+    removed = 0
+    for k, v in obj.items():
+        ts = None
+        if isinstance(v, (list, tuple)) and len(v) >= 2 and isinstance(v[1], str):
+            m = _ISO_PREFIX.match(v[1])
+            if m:
+                try:
+                    ts = datetime.strptime(m.group(1), "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+                except ValueError:
+                    ts = None
+        if ts is not None and ts < cutoff:
+            removed += 1
             continue
-        if ep < cutoff:
-            os.remove(os.path.join(cmc, fn))
+        keep[k] = v
+    if removed:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(keep, f, ensure_ascii=False, separators=(",", ":"))
+    return removed
+
+
+def _trim_old(root, keep_days):
+    """Prune event_cache files older than keep_days (default ~1 month).
+
+    Previously only trimmed cmc_snapshots/; raw K-line caches were never
+    deleted and grew to hundreds of MB, breaking GitHub Pages publishes.
+    """
+    if keep_days <= 0:
+        return 0
+    cutoff = time.time() - keep_days * 86400
+    removed = 0
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        for fn in filenames:
+            path = os.path.join(dirpath, fn)
+            if fn == "odaily_index.json":
+                removed += _prune_odaily_index(path, cutoff)
+                # also drop the whole file if emptied / still ancient mtime
+                try:
+                    if os.path.getsize(path) < 3:
+                        os.remove(path)
+                        removed += 1
+                        continue
+                except OSError:
+                    pass
+                continue
+            ep = _file_epoch(path, fn)
+            if ep < cutoff:
+                try:
+                    os.remove(path)
+                    removed += 1
+                except OSError:
+                    pass
+        # remove empty dirs under root
+        if dirpath != root:
+            try:
+                if not os.listdir(dirpath):
+                    os.rmdir(dirpath)
+            except OSError:
+                pass
+    return removed
 
 
 def main():

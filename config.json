@@ -4,12 +4,14 @@
     "host": "127.0.0.1",
     "port": 5190,
     "poll_seconds": 180,
-    "retain_hours": 48,
+    "retain_hours": 336,
     "seed_hours": 12,
     "data_dir": "data",
     "price_for_low": true,
-    "_note": "price_for_low: 低分条目也取价(仅 Binance，CoinGecko 兜底只给命中条目，避免限流)"
+    "_note": "retain_hours=336：新闻 data.json/state 保留近 2 周。price_for_low: 低分条目也取价(仅 Binance，CoinGecko 兜底只给命中条目，避免限流)"
   },
+  "cache_keep_days": 30,
+  "_cache_keep_days_note": "event_cache 及其他 tracker 缓存保留天数（约一个月）；由 event_store/cache_util.py 与 update-events workflow 执行",
   "threshold": 7,
   "big_threshold": 7,
   "cluster_hours": 6,

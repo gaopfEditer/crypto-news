@@ -411,8 +411,8 @@ def main():
     
     state["stories"] = stories
     
-    # 清理旧的 seen 记录
-    state["seen"] = {k: v for k, v in seen.items() if v >= now - 7 * 86400}
+    # 清理旧的 seen 记录（与新闻保留窗口一致）
+    state["seen"] = {k: v for k, v in seen.items() if v >= retain_cut}
     
     if seeding:
         state["seeded_at"] = int(now)
