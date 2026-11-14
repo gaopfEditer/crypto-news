@@ -1,6 +1,6 @@
 {
- "updated": 1794625670,
- "updated_utc8": "2026-11-14 11:07:50",
+ "updated": 1794628980,
+ "updated_utc8": "2026-11-14 12:03:00",
  "price_source": "fapi_usdt_perp",
  "market": "usdt_perpetual",
  "min_quote_volume_usd": 5000000,
@@ -10,184 +10,196 @@
   {
    "symbol": "AKEUSDT",
    "base": "AKE",
-   "price": 0.012513,
-   "change_pct": 374.7,
-   "quote_volume": 1251858053.25,
+   "price": 0.012496,
+   "change_pct": 375.86,
+   "quote_volume": 1286761945.01,
    "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 4.1 倍（约 $1251.9M vs 均 $305.5M）"
+     "text": "24h 成交额约为近7日日均的 4.2 倍（约 $1286.8M vs 均 $305.5M）"
+    },
+    {
+     "kind": "futures",
+     "text": "资金费率 -0.022%（空头支付费率，或反映合约侧情绪）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日增仓约 391.4%"
     }
    ],
-   "trade_count": 16827861
+   "trade_count": 17435701
   },
   {
    "symbol": "SHELLUSDT",
    "base": "SHELL",
-   "price": 0.03292,
-   "change_pct": 72.81,
-   "quote_volume": 204601130.53,
+   "price": 0.03217,
+   "change_pct": 71.12,
+   "quote_volume": 210702857.95,
    "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 7.9 倍（约 $204.6M vs 均 $25.8M）"
+     "text": "24h 成交额约为近7日日均的 8.2 倍（约 $210.7M vs 均 $25.8M）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日增仓约 407.0%"
     }
    ],
-   "trade_count": 2992481
+   "trade_count": 3084374
   },
   {
    "symbol": "TACUSDT",
    "base": "TAC",
-   "price": 0.001396,
-   "change_pct": 55.11,
-   "quote_volume": 34133417.95,
+   "price": 0.001137,
+   "change_pct": 29.2,
+   "quote_volume": 44250121.34,
    "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 8.1 倍（约 $34.1M vs 均 $4.2M）"
+     "text": "24h 成交额约为近7日日均的 10.5 倍（约 $44.3M vs 均 $4.2M）"
     },
     {
      "kind": "futures",
-     "text": "资金费率 -0.033%（空头支付费率，或反映合约侧情绪）"
+     "text": "资金费率 -0.199%（空头支付费率，或反映合约侧情绪）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日增仓约 76.8%"
     }
    ],
-   "trade_count": 514152
-  },
-  {
-   "symbol": "BERAUSDT",
-   "base": "BERA",
-   "price": 0.1268,
-   "change_pct": 27.44,
-   "quote_volume": 62317190.71,
-   "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
-   "factors": [
-    {
-     "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 8.0 倍（约 $62.3M vs 均 $7.8M）"
-    },
-    {
-     "kind": "futures",
-     "text": "资金费率 -1.255%（空头支付费率，或反映合约侧情绪）"
-    },
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日增仓约 50.4%"
-    }
-   ],
-   "trade_count": 440093
+   "trade_count": 628869
   },
   {
    "symbol": "SOPHUSDT",
    "base": "SOPH",
-   "price": 0.001671,
-   "change_pct": 23.96,
-   "quote_volume": 112343859.85,
+   "price": 0.001713,
+   "change_pct": 26.98,
+   "quote_volume": 113266841.27,
    "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 4.8 倍（约 $112.3M vs 均 $23.5M）"
+     "text": "24h 成交额约为近7日日均的 4.8 倍（约 $113.3M vs 均 $23.5M）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日增仓约 91.8%"
     }
    ],
-   "trade_count": 961935
+   "trade_count": 969221
   },
   {
-   "symbol": "SOXSUSDT",
-   "base": "SOXS",
-   "price": 52.75,
-   "change_pct": 17.51,
-   "quote_volume": 896457577.7,
-   "direction_note": "短线偏强，结合下方因素判断持续性。",
-   "factors": [
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日增仓约 19.0%"
-    }
-   ],
-   "trade_count": 1881267
-  },
-  {
-   "symbol": "BMTUSDT",
-   "base": "BMT",
-   "price": 0.02371,
-   "change_pct": 14.32,
-   "quote_volume": 36509624.26,
-   "direction_note": "短线偏强，结合下方因素判断持续性。",
+   "symbol": "BERAUSDT",
+   "base": "BERA",
+   "price": 0.1211,
+   "change_pct": 23.45,
+   "quote_volume": 76706188.16,
+   "direction_note": "放量大涨，可能有消息或资金推动，追高风险较高。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 1.6 倍（约 $36.5M vs 均 $23.1M）"
+     "text": "24h 成交额约为近7日日均的 9.8 倍（约 $76.7M vs 均 $7.8M）"
     },
     {
      "kind": "futures",
-     "text": "资金费率 -0.633%（空头支付费率，或反映合约侧情绪）"
+     "text": "资金费率 -1.234%（空头支付费率，或反映合约侧情绪）"
     },
     {
      "kind": "futures",
-     "text": "合约持仓（OI）近1日增仓约 19.0%"
+     "text": "合约持仓（OI）近1日增仓约 50.4%"
     }
    ],
-   "trade_count": 508479
+   "trade_count": 523545
   },
   {
    "symbol": "UAIUSDT",
    "base": "UAI",
-   "price": 0.04064,
-   "change_pct": 14.25,
-   "quote_volume": 32616897.02,
+   "price": 0.03978,
+   "change_pct": 12.56,
+   "quote_volume": 41169671.72,
    "direction_note": "短线偏强，结合下方因素判断持续性。",
    "factors": [
+    {
+     "kind": "futures",
+     "text": "资金费率 0.012%（多头支付费率，或反映合约侧情绪）"
+    },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日增仓约 9.3%"
     }
    ],
-   "trade_count": 755977
+   "trade_count": 918636
   },
   {
-   "symbol": "SKDDUSDT",
-   "base": "SKDD",
-   "price": 10.509,
-   "change_pct": 11.73,
-   "quote_volume": 15683531.66,
+   "symbol": "SOXSUSDT",
+   "base": "SOXS",
+   "price": 52.96,
+   "change_pct": 12.04,
+   "quote_volume": 874657657.23,
    "direction_note": "短线偏强，结合下方因素判断持续性。",
    "factors": [
     {
      "kind": "futures",
-     "text": "资金费率 -0.026%（空头支付费率，或反映合约侧情绪）"
+     "text": "合约持仓（OI）近1日增仓约 19.0%"
+    }
+   ],
+   "trade_count": 1835305
+  },
+  {
+   "symbol": "BMTUSDT",
+   "base": "BMT",
+   "price": 0.02314,
+   "change_pct": 11.68,
+   "quote_volume": 36294796.17,
+   "direction_note": "短线偏强，结合下方因素判断持续性。",
+   "factors": [
+    {
+     "kind": "volume",
+     "text": "24h 成交额约为近7日日均的 1.6 倍（约 $36.3M vs 均 $23.1M）"
     },
     {
      "kind": "futures",
-     "text": "合约持仓（OI）近1日增仓约 14.8%"
+     "text": "资金费率 -0.750%（空头支付费率，或反映合约侧情绪）"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日增仓约 19.0%"
     }
    ],
-   "trade_count": 171818
+   "trade_count": 502534
+  },
+  {
+   "symbol": "DODOXUSDT",
+   "base": "DODOX",
+   "price": 0.030328,
+   "change_pct": 11.52,
+   "quote_volume": 41271741.89,
+   "direction_note": "短线偏强，结合下方因素判断持续性。",
+   "factors": [
+    {
+     "kind": "volume",
+     "text": "24h 成交额约为近7日日均的 3.2 倍（约 $41.3M vs 均 $12.9M）"
+    },
+    {
+     "kind": "futures",
+     "text": "资金费率 0.065%（多头支付费率，或反映合约侧情绪）"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日增仓约 14.3%"
+    }
+   ],
+   "trade_count": 762529
   },
   {
    "symbol": "ARXUSDT",
    "base": "ARX",
-   "price": 0.2194,
-   "change_pct": 10.75,
-   "quote_volume": 11728290.16,
+   "price": 0.2224,
+   "change_pct": 10.92,
+   "quote_volume": 11602477.75,
    "direction_note": "短线偏强，结合下方因素判断持续性。",
    "factors": [
     {
@@ -199,136 +211,39 @@
      "text": "合约持仓（OI）近1日增仓约 10.7%"
     }
    ],
-   "trade_count": 146410
+   "trade_count": 146264
   }
  ],
  "losers": [
   {
    "symbol": "BULLAUSDT",
    "base": "BULLA",
-   "price": 0.0297,
-   "change_pct": -39.59,
-   "quote_volume": 80194309.5,
+   "price": 0.02621,
+   "change_pct": -45.44,
+   "quote_volume": 82079470.75,
    "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
    "factors": [
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 4.8 倍（约 $80.2M vs 均 $16.6M）"
+     "text": "24h 成交额约为近7日日均的 4.9 倍（约 $82.1M vs 均 $16.6M）"
     },
     {
      "kind": "futures",
-     "text": "资金费率 0.017%（多头支付费率，或反映合约侧情绪）"
+     "text": "资金费率 0.033%（多头支付费率，或反映合约侧情绪）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日减仓约 26.1%"
     }
    ],
-   "trade_count": 1594528
-  },
-  {
-   "symbol": "BANANAS31USDT",
-   "base": "BANANAS31",
-   "price": 0.003958,
-   "change_pct": -17.11,
-   "quote_volume": 13450615.61,
-   "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
-   "factors": [
-    {
-     "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 4.4 倍（约 $13.5M vs 均 $3.0M）"
-    }
-   ],
-   "trade_count": 283276
-  },
-  {
-   "symbol": "MVLLUSDT",
-   "base": "MVLL",
-   "price": 9.96,
-   "change_pct": -17.07,
-   "quote_volume": 50478559.25,
-   "direction_note": "短线偏弱，关注是否超卖反弹。",
-   "factors": [
-    {
-     "kind": "futures",
-     "text": "资金费率 -0.021%（空头支付费率，或反映合约侧情绪）"
-    },
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 6.9%"
-    }
-   ],
-   "trade_count": 169612
-  },
-  {
-   "symbol": "SNXXUSDT",
-   "base": "SNXX",
-   "price": 3.403,
-   "change_pct": -16.78,
-   "quote_volume": 343677346.39,
-   "direction_note": "短线偏弱，关注是否超卖反弹。",
-   "factors": [
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 12.6%"
-    }
-   ],
-   "trade_count": 1140388
-  },
-  {
-   "symbol": "SOXLUSDT",
-   "base": "SOXL",
-   "price": 56.12,
-   "change_pct": -16.25,
-   "quote_volume": 5071726036.18,
-   "direction_note": "短线偏弱，关注是否超卖反弹。",
-   "factors": [
-    {
-     "kind": "news",
-     "text": "仓位价值 1312 万美元，某地址新建钱包并以 10 倍杠杆做多 SOXL",
-     "url": "https://www.odaily.news/zh-CN/newsflash/533654"
-    },
-    {
-     "kind": "futures",
-     "text": "资金费率 0.023%（多头支付费率，或反映合约侧情绪）"
-    },
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 28.6%"
-    }
-   ],
-   "trade_count": 5889383
-  },
-  {
-   "symbol": "IDOLUSDT",
-   "base": "IDOL",
-   "price": 0.020875,
-   "change_pct": -15.57,
-   "quote_volume": 148245121.15,
-   "direction_note": "短线偏弱，关注是否超卖反弹。",
-   "factors": [
-    {
-     "kind": "news",
-     "text": "Bybit 今日上线 OROCHI 、 IDOL 永续合约 · (新永续合约/高杠杆) · [利好]",
-     "url": "https://www.odaily.news/zh-CN/newsflash/534170"
-    },
-    {
-     "kind": "event",
-     "text": "事件库：代币解锁 2026-11-11 08:00，约流通 9.891060967%"
-    },
-    {
-     "kind": "futures",
-     "text": "资金费率 0.019%（多头支付费率，或反映合约侧情绪）"
-    }
-   ],
-   "trade_count": 3821624
+   "trade_count": 1636788
   },
   {
    "symbol": "BTWUSDT",
    "base": "BTW",
-   "price": 0.7764,
-   "change_pct": -14.4,
-   "quote_volume": 93798755.07,
+   "price": 0.7446,
+   "change_pct": -16.07,
+   "quote_volume": 94679155.22,
    "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
    "factors": [
     {
@@ -338,88 +253,183 @@
     },
     {
      "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 1.8 倍（约 $93.8M vs 均 $51.6M）"
+     "text": "24h 成交额约为近7日日均的 1.8 倍（约 $94.7M vs 均 $51.6M）"
     },
     {
      "kind": "futures",
-     "text": "资金费率 -1.264%（空头支付费率，或反映合约侧情绪）"
+     "text": "资金费率 -0.659%（空头支付费率，或反映合约侧情绪）"
     },
     {
      "kind": "futures",
      "text": "合约持仓（OI）近1日减仓约 13.6%"
     }
    ],
-   "trade_count": 2386150
+   "trade_count": 2406907
   },
   {
-   "symbol": "TIAUSDT",
-   "base": "TIA",
-   "price": 0.3727,
-   "change_pct": -13.91,
-   "quote_volume": 61033907.11,
-   "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
+   "symbol": "IDOLUSDT",
+   "base": "IDOL",
+   "price": 0.020503,
+   "change_pct": -13.85,
+   "quote_volume": 142793645.22,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
-     "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 1.9 倍（约 $61.0M vs 均 $31.7M）"
+     "kind": "news",
+     "text": "Bybit 今日上线 OROCHI 、 IDOL 永续合约 · (新永续合约/高杠杆) · [利好]",
+     "url": "https://www.odaily.news/zh-CN/newsflash/534170"
+    },
+    {
+     "kind": "event",
+     "text": "事件库：永续合约上线 2026-11-13 17:52"
+    },
+    {
+     "kind": "event",
+     "text": "事件库：代币解锁 2026-11-11 08:00，约流通 9.891060967%"
     },
     {
      "kind": "futures",
-     "text": "资金费率 -0.016%（空头支付费率，或反映合约侧情绪）"
-    },
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 14.6%"
+     "text": "资金费率 0.011%（多头支付费率，或反映合约侧情绪）"
     }
    ],
-   "trade_count": 536482
+   "trade_count": 3700817
   },
   {
-   "symbol": "PLAYUSDT",
-   "base": "PLAY",
-   "price": 0.00774,
-   "change_pct": -13.9,
-   "quote_volume": 32565732.65,
-   "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
-   "factors": [
-    {
-     "kind": "volume",
-     "text": "24h 成交额约为近7日日均的 1.8 倍（约 $32.6M vs 均 $17.8M）"
-    },
-    {
-     "kind": "futures",
-     "text": "资金费率 0.031%（多头支付费率，或反映合约侧情绪）"
-    },
-    {
-     "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 35.9%"
-    }
-   ],
-   "trade_count": 425142
-  },
-  {
-   "symbol": "HAEDALUSDT",
-   "base": "HAEDAL",
-   "price": 0.02146,
-   "change_pct": -13.5,
-   "quote_volume": 5550019.51,
+   "symbol": "SNXXUSDT",
+   "base": "SNXX",
+   "price": 3.392,
+   "change_pct": -12.91,
+   "quote_volume": 331828179.8,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
      "kind": "futures",
-     "text": "合约持仓（OI）近1日减仓约 10.8%"
+     "text": "合约持仓（OI）近1日减仓约 12.6%"
     }
    ],
-   "trade_count": 114637
+   "trade_count": 1110203
+  },
+  {
+   "symbol": "BANANAS31USDT",
+   "base": "BANANAS31",
+   "price": 0.004073,
+   "change_pct": -12.58,
+   "quote_volume": 13633795.87,
+   "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
+   "factors": [
+    {
+     "kind": "volume",
+     "text": "24h 成交额约为近7日日均的 4.5 倍（约 $13.6M vs 均 $3.0M）"
+    }
+   ],
+   "trade_count": 287683
+  },
+  {
+   "symbol": "MVLLUSDT",
+   "base": "MVLL",
+   "price": 9.93,
+   "change_pct": -12.36,
+   "quote_volume": 49457658.67,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
+   "factors": [
+    {
+     "kind": "futures",
+     "text": "资金费率 -0.028%（空头支付费率，或反映合约侧情绪）"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日减仓约 6.9%"
+    }
+   ],
+   "trade_count": 166143
+  },
+  {
+   "symbol": "SOXLUSDT",
+   "base": "SOXL",
+   "price": 55.89,
+   "change_pct": -12.04,
+   "quote_volume": 4905012638.15,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
+   "factors": [
+    {
+     "kind": "news",
+     "text": "仓位价值 1312 万美元，某地址新建钱包并以 10 倍杠杆做多 SOXL",
+     "url": "https://www.odaily.news/zh-CN/newsflash/533654"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日减仓约 28.6%"
+    }
+   ],
+   "trade_count": 5748963
+  },
+  {
+   "symbol": "BATUSDT",
+   "base": "BAT",
+   "price": 0.10415,
+   "change_pct": -11.76,
+   "quote_volume": 15446470.04,
+   "direction_note": "放量下跌，警惕恐慌抛售或杠杆清算。",
+   "factors": [
+    {
+     "kind": "volume",
+     "text": "24h 成交额约为近7日日均的 1.7 倍（约 $15.4M vs 均 $8.9M）"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日减仓约 17.4%"
+    }
+   ],
+   "trade_count": 387124
+  },
+  {
+   "symbol": "USELESSUSDT",
+   "base": "USELESS",
+   "price": 0.11491,
+   "change_pct": -10.79,
+   "quote_volume": 30926191.8,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
+   "factors": [
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日减仓约 4.0%"
+    }
+   ],
+   "trade_count": 708608
+  },
+  {
+   "symbol": "NBISUSDT",
+   "base": "NBIS",
+   "price": 112.66,
+   "change_pct": -10.73,
+   "quote_volume": 197487491.07,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
+   "factors": [
+    {
+     "kind": "news",
+     "text": "NBIS 24 小时下跌 11.3%",
+     "url": "https://www.odaily.news/zh-CN/newsflash/534218"
+    },
+    {
+     "kind": "news",
+     "text": "火币 HTX 将于 11 月 13 日开放 NBIS 、 BE 、 MRNA 现货交易",
+     "url": "https://www.odaily.news/zh-CN/newsflash/533990"
+    },
+    {
+     "kind": "futures",
+     "text": "合约持仓（OI）近1日增仓约 5.4%"
+    }
+   ],
+   "trade_count": 782363
   }
  ],
  "hot": [
   {
    "symbol": "BTCUSDT",
    "base": "BTC",
-   "price": 67620.0,
-   "change_pct": -3.61,
-   "quote_volume": 18931368312.71,
+   "price": 66817.1,
+   "change_pct": -2.77,
+   "quote_volume": 17574115324.14,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -438,14 +448,14 @@
      "url": "https://www.coindesk.com/tech/2026/11/13/bitcoin-miners-pay-paraguay-usd350-million-a-year-but-ai-is-pushing-them-out"
     }
    ],
-   "trade_count": 6166984
+   "trade_count": 5796841
   },
   {
    "symbol": "ETHUSDT",
    "base": "ETH",
-   "price": 1909.7,
-   "change_pct": -3.97,
-   "quote_volume": 11590190143.16,
+   "price": 1887.38,
+   "change_pct": -2.22,
+   "quote_volume": 10505324600.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -468,14 +478,14 @@
      "text": "事件库：销毁/回购 2026-11-08 20:10，数量 700000.0"
     }
    ],
-   "trade_count": 8027278
+   "trade_count": 7599014
   },
   {
    "symbol": "AKEUSDT",
    "base": "AKE",
-   "price": 0.012513,
-   "change_pct": 374.7,
-   "quote_volume": 1251858053.25,
+   "price": 0.012496,
+   "change_pct": 375.86,
+   "quote_volume": 1286761945.01,
    "direction_note": "偏多但缺乏明确催化剂，更像资金/情绪推动。",
    "factors": [
     {
@@ -483,14 +493,14 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 16827861
+   "trade_count": 17435701
   },
   {
    "symbol": "SOXLUSDT",
    "base": "SOXL",
-   "price": 56.12,
-   "change_pct": -16.25,
-   "quote_volume": 5071726036.18,
+   "price": 55.89,
+   "change_pct": -12.04,
+   "quote_volume": 4905012638.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -499,14 +509,14 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/533654"
     }
    ],
-   "trade_count": 5889383
+   "trade_count": 5748963
   },
   {
    "symbol": "NVDAUSDT",
    "base": "NVDA",
-   "price": 161.97,
-   "change_pct": -2.5,
-   "quote_volume": 2192258025.58,
+   "price": 161.51,
+   "change_pct": -1.45,
+   "quote_volume": 2138261533.08,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -525,14 +535,30 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d261-08c3-70e4-b757-a3e6d4a04b53"
     }
    ],
-   "trade_count": 3429882
+   "trade_count": 3343835
+  },
+  {
+   "symbol": "SNDKUSDT",
+   "base": "SNDK",
+   "price": 862.37,
+   "change_pct": -6.51,
+   "quote_volume": 1964393575.42,
+   "direction_note": "短线偏弱，关注是否超卖反弹。",
+   "factors": [
+    {
+     "kind": "news",
+     "text": "SanDisk（SNDK）股票盘中跌幅达10.32%，现报877.94美元",
+     "url": "https://www.panewslab.com/zh/articles/01a1d02a-b94c-7293-a6f1-ac53fd94838c"
+    }
+   ],
+   "trade_count": 3925190
   },
   {
    "symbol": "SOLUSDT",
    "base": "SOL",
-   "price": 76.08,
-   "change_pct": -5.2,
-   "quote_volume": 2115822192.16,
+   "price": 75.18,
+   "change_pct": -4.05,
+   "quote_volume": 1998841720.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -551,30 +577,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d773-0c42-700d-bbc2-3debf2d35294"
     }
    ],
-   "trade_count": 2485579
-  },
-  {
-   "symbol": "SNDKUSDT",
-   "base": "SNDK",
-   "price": 863.83,
-   "change_pct": -8.62,
-   "quote_volume": 2019604317.4,
-   "direction_note": "短线偏弱，关注是否超卖反弹。",
-   "factors": [
-    {
-     "kind": "news",
-     "text": "SanDisk（SNDK）股票盘中跌幅达10.32%，现报877.94美元",
-     "url": "https://www.panewslab.com/zh/articles/01a1d02a-b94c-7293-a6f1-ac53fd94838c"
-    }
-   ],
-   "trade_count": 4018646
+   "trade_count": 2405768
   },
   {
    "symbol": "ZECUSDT",
    "base": "ZEC",
-   "price": 930.99,
-   "change_pct": -1.66,
-   "quote_volume": 1910088225.89,
+   "price": 904.45,
+   "change_pct": -2.38,
+   "quote_volume": 1853745636.78,
    "direction_note": "跌幅与近期利空/风险事件一致，反弹需确认。",
    "factors": [
     {
@@ -593,14 +603,14 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/533970"
     }
    ],
-   "trade_count": 5791456
+   "trade_count": 5619462
   },
   {
    "symbol": "XAUUSDT",
    "base": "XAU",
-   "price": 3883.78,
-   "change_pct": -1.04,
-   "quote_volume": 1772668428.25,
+   "price": 3877.49,
+   "change_pct": -1.24,
+   "quote_volume": 1698813289.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -609,14 +619,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1cfe2-630c-74f5-9bce-b2dea0c824a7"
     }
    ],
-   "trade_count": 1452020
+   "trade_count": 1408994
   },
   {
    "symbol": "SPCXUSDT",
    "base": "SPCX",
-   "price": 136.56,
-   "change_pct": -3.46,
-   "quote_volume": 1570294829.93,
+   "price": 136.27,
+   "change_pct": -2.75,
+   "quote_volume": 1556538269.3,
    "direction_note": "偏空但未见明确新闻，疑似资金流出或板块拖累。",
    "factors": [
     {
@@ -624,16 +634,16 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 1810946
+   "trade_count": 1772577
   }
  ],
  "volume_leaders": [
   {
    "symbol": "BTCUSDT",
    "base": "BTC",
-   "price": 67620.0,
-   "change_pct": -3.61,
-   "quote_volume": 18931368312.71,
+   "price": 66817.1,
+   "change_pct": -2.77,
+   "quote_volume": 17574115324.14,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -652,14 +662,14 @@
      "url": "https://www.coindesk.com/tech/2026/11/13/bitcoin-miners-pay-paraguay-usd350-million-a-year-but-ai-is-pushing-them-out"
     }
    ],
-   "trade_count": 6166984
+   "trade_count": 5796841
   },
   {
    "symbol": "ETHUSDT",
    "base": "ETH",
-   "price": 1909.7,
-   "change_pct": -3.97,
-   "quote_volume": 11590190143.16,
+   "price": 1887.38,
+   "change_pct": -2.22,
+   "quote_volume": 10505324600.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -682,14 +692,14 @@
      "text": "事件库：销毁/回购 2026-11-08 20:10，数量 700000.0"
     }
    ],
-   "trade_count": 8027278
+   "trade_count": 7599014
   },
   {
    "symbol": "SOXLUSDT",
    "base": "SOXL",
-   "price": 56.12,
-   "change_pct": -16.25,
-   "quote_volume": 5071726036.18,
+   "price": 55.89,
+   "change_pct": -12.04,
+   "quote_volume": 4905012638.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -698,14 +708,14 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/533654"
     }
    ],
-   "trade_count": 5889383
+   "trade_count": 5748963
   },
   {
    "symbol": "NVDAUSDT",
    "base": "NVDA",
-   "price": 161.97,
-   "change_pct": -2.5,
-   "quote_volume": 2192258025.58,
+   "price": 161.51,
+   "change_pct": -1.45,
+   "quote_volume": 2138261533.08,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -724,14 +734,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d261-08c3-70e4-b757-a3e6d4a04b53"
     }
    ],
-   "trade_count": 3429882
+   "trade_count": 3343835
   },
   {
    "symbol": "SOLUSDT",
    "base": "SOL",
-   "price": 76.08,
-   "change_pct": -5.2,
-   "quote_volume": 2115822192.16,
+   "price": 75.18,
+   "change_pct": -4.05,
+   "quote_volume": 1998841720.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -750,14 +760,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d773-0c42-700d-bbc2-3debf2d35294"
     }
    ],
-   "trade_count": 2485579
+   "trade_count": 2405768
   },
   {
    "symbol": "SNDKUSDT",
    "base": "SNDK",
-   "price": 863.83,
-   "change_pct": -8.62,
-   "quote_volume": 2019604317.4,
+   "price": 862.37,
+   "change_pct": -6.51,
+   "quote_volume": 1964393575.42,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -766,14 +776,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d02a-b94c-7293-a6f1-ac53fd94838c"
     }
    ],
-   "trade_count": 4018646
+   "trade_count": 3925190
   },
   {
    "symbol": "ZECUSDT",
    "base": "ZEC",
-   "price": 930.99,
-   "change_pct": -1.66,
-   "quote_volume": 1910088225.89,
+   "price": 904.45,
+   "change_pct": -2.38,
+   "quote_volume": 1853745636.78,
    "direction_note": "跌幅与近期利空/风险事件一致，反弹需确认。",
    "factors": [
     {
@@ -792,14 +802,14 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/533970"
     }
    ],
-   "trade_count": 5791456
+   "trade_count": 5619462
   },
   {
    "symbol": "XAUUSDT",
    "base": "XAU",
-   "price": 3883.78,
-   "change_pct": -1.04,
-   "quote_volume": 1772668428.25,
+   "price": 3877.49,
+   "change_pct": -1.24,
+   "quote_volume": 1698813289.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -808,14 +818,14 @@
      "url": "https://www.panewslab.com/zh/articles/01a1cfe2-630c-74f5-9bce-b2dea0c824a7"
     }
    ],
-   "trade_count": 1452020
+   "trade_count": 1408994
   },
   {
    "symbol": "SPCXUSDT",
    "base": "SPCX",
-   "price": 136.56,
-   "change_pct": -3.46,
-   "quote_volume": 1570294829.93,
+   "price": 136.27,
+   "change_pct": -2.75,
+   "quote_volume": 1556538269.3,
    "direction_note": "偏空但未见明确新闻，疑似资金流出或板块拖累。",
    "factors": [
     {
@@ -823,14 +833,14 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 1810946
+   "trade_count": 1772577
   },
   {
    "symbol": "AKEUSDT",
    "base": "AKE",
-   "price": 0.012513,
-   "change_pct": 374.7,
-   "quote_volume": 1251858053.25,
+   "price": 0.012496,
+   "change_pct": 375.86,
+   "quote_volume": 1286761945.01,
    "direction_note": "偏多但缺乏明确催化剂，更像资金/情绪推动。",
    "factors": [
     {
@@ -838,16 +848,16 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 16827861
+   "trade_count": 17435701
   }
  ],
  "oi_leaders": [
   {
    "symbol": "BTCUSDT",
    "base": "BTC",
-   "price": 67620.0,
-   "change_pct": -3.61,
-   "quote_volume": 18931368312.71,
+   "price": 66817.1,
+   "change_pct": -2.77,
+   "quote_volume": 17574115324.14,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -866,16 +876,16 @@
      "url": "https://www.coindesk.com/tech/2026/11/13/bitcoin-miners-pay-paraguay-usd350-million-a-year-but-ai-is-pushing-them-out"
     }
    ],
-   "trade_count": 6166984,
-   "open_interest_usd": 6558410109.72,
-   "open_interest": 96989.206
+   "trade_count": 5796841,
+   "open_interest_usd": 6476785027.89,
+   "open_interest": 96933.046
   },
   {
    "symbol": "ETHUSDT",
    "base": "ETH",
-   "price": 1909.7,
-   "change_pct": -3.97,
-   "quote_volume": 11590190143.16,
+   "price": 1887.38,
+   "change_pct": -2.22,
+   "quote_volume": 10505324600.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -898,16 +908,16 @@
      "text": "事件库：销毁/回购 2026-11-08 20:10，数量 700000.0"
     }
    ],
-   "trade_count": 8027278,
-   "open_interest_usd": 4424798337.75,
-   "open_interest": 2317012.273
+   "trade_count": 7599014,
+   "open_interest_usd": 4375657008.25,
+   "open_interest": 2318376.272
   },
   {
    "symbol": "SOLUSDT",
    "base": "SOL",
-   "price": 76.08,
-   "change_pct": -5.2,
-   "quote_volume": 2115822192.16,
+   "price": 75.18,
+   "change_pct": -4.05,
+   "quote_volume": 1998841720.03,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -926,16 +936,16 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d773-0c42-700d-bbc2-3debf2d35294"
     }
    ],
-   "trade_count": 2485579,
-   "open_interest_usd": 714494309.7,
-   "open_interest": 9391355.28
+   "trade_count": 2405768,
+   "open_interest_usd": 707866801.02,
+   "open_interest": 9415626.51
   },
   {
    "symbol": "XAUUSDT",
    "base": "XAU",
-   "price": 3883.78,
-   "change_pct": -1.04,
-   "quote_volume": 1772668428.25,
+   "price": 3877.49,
+   "change_pct": -1.24,
+   "quote_volume": 1698813289.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -944,16 +954,16 @@
      "url": "https://www.panewslab.com/zh/articles/01a1cfe2-630c-74f5-9bce-b2dea0c824a7"
     }
    ],
-   "trade_count": 1452020,
-   "open_interest_usd": 500689254.9,
-   "open_interest": 128918.027
+   "trade_count": 1408994,
+   "open_interest_usd": 498533356.17,
+   "open_interest": 128571.152
   },
   {
    "symbol": "ZECUSDT",
    "base": "ZEC",
-   "price": 930.99,
-   "change_pct": -1.66,
-   "quote_volume": 1910088225.89,
+   "price": 904.45,
+   "change_pct": -2.38,
+   "quote_volume": 1853745636.78,
    "direction_note": "跌幅与近期利空/风险事件一致，反弹需确认。",
    "factors": [
     {
@@ -972,16 +982,16 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/533970"
     }
    ],
-   "trade_count": 5791456,
-   "open_interest_usd": 415566184.12,
-   "open_interest": 446370.191
+   "trade_count": 5619462,
+   "open_interest_usd": 406112765.4,
+   "open_interest": 449016.27
   },
   {
    "symbol": "NVDAUSDT",
    "base": "NVDA",
-   "price": 161.97,
-   "change_pct": -2.5,
-   "quote_volume": 2192258025.58,
+   "price": 161.51,
+   "change_pct": -1.45,
+   "quote_volume": 2138261533.08,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -1000,16 +1010,16 @@
      "url": "https://www.panewslab.com/zh/articles/01a1d261-08c3-70e4-b757-a3e6d4a04b53"
     }
    ],
-   "trade_count": 3429882,
-   "open_interest_usd": 376243025.22,
-   "open_interest": 2322917.98
+   "trade_count": 3343835,
+   "open_interest_usd": 375441665.71,
+   "open_interest": 2324572.26
   },
   {
    "symbol": "SPCXUSDT",
    "base": "SPCX",
-   "price": 136.56,
-   "change_pct": -3.46,
-   "quote_volume": 1570294829.93,
+   "price": 136.27,
+   "change_pct": -2.75,
+   "quote_volume": 1556538269.3,
    "direction_note": "偏空但未见明确新闻，疑似资金流出或板块拖累。",
    "factors": [
     {
@@ -1017,16 +1027,16 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 1810946,
-   "open_interest_usd": 369367042.81,
-   "open_interest": 2704796.74
+   "trade_count": 1772577,
+   "open_interest_usd": 367836042.06,
+   "open_interest": 2699317.84
   },
   {
    "symbol": "HYPEUSDT",
    "base": "HYPE",
-   "price": 70.36,
-   "change_pct": -2.74,
-   "quote_volume": 764440798.19,
+   "price": 67.444,
+   "change_pct": -4.59,
+   "quote_volume": 816237716.15,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -1049,16 +1059,16 @@
      "text": "事件库：上交易所 2026-11-10 13:13，Bithumb (KRW)"
     }
    ],
-   "trade_count": 2392407,
-   "open_interest_usd": 361702718.99,
-   "open_interest": 5140743.59
+   "trade_count": 2458886,
+   "open_interest_usd": 353936854.64,
+   "open_interest": 5247862.74
   },
   {
    "symbol": "BNBUSDT",
    "base": "BNB",
-   "price": 625.29,
-   "change_pct": -3.21,
-   "quote_volume": 526789949.05,
+   "price": 616.27,
+   "change_pct": -2.66,
+   "quote_volume": 492848829.52,
    "direction_note": "短线偏弱，关注是否超卖反弹。",
    "factors": [
     {
@@ -1072,16 +1082,16 @@
      "url": "https://www.odaily.news/zh-CN/newsflash/534407"
     }
    ],
-   "trade_count": 1347738,
-   "open_interest_usd": 355132467.54,
-   "open_interest": 567948.42
+   "trade_count": 1302329,
+   "open_interest_usd": 351932902.16,
+   "open_interest": 571069.34
   },
   {
    "symbol": "SKHYNIXUSDT",
    "base": "SKHYNIX",
-   "price": 883.9,
-   "change_pct": -6.93,
-   "quote_volume": 864301264.08,
+   "price": 882.5,
+   "change_pct": -3.78,
+   "quote_volume": 780233919.64,
    "direction_note": "偏空但未见明确新闻，疑似资金流出或板块拖累。",
    "factors": [
     {
@@ -1089,9 +1099,9 @@
      "text": "未找到明确消息，疑似资金/情绪驱动"
     }
    ],
-   "trade_count": 1965247,
-   "open_interest_usd": 299642126.52,
-   "open_interest": 339000.03
+   "trade_count": 1780426,
+   "open_interest_usd": 298975035.57,
+   "open_interest": 338781.91
   }
  ],
  "oi_available": true,
