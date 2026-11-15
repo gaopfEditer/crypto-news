@@ -18,6 +18,10 @@ gh api repos/gaopfEditer/crypto-news/pages --jq '{html_url, build_type, source}'
 
 修复前典型输出：`"source": {"branch": "main", "path": "/"}`。
 
+Cloud Agent 的 `GITHUB_TOKEN` 往往无权调用 `PUT /repos/{owner}/{repo}/pages`（403 *Resource not accessible by integration*），此时需在 **Settings → Pages** 手动将发布分支改为 `gh-pages`。
+
+在 Pages 仍指向 `main` 期间，各 HTML 会并行尝试：`./<file>.json` → jsDelivr `@gh-pages` → `raw.githubusercontent.com/.../gh-pages/...`（按 `updated` 取最新，同版本优先本地）。
+
 ## 合入修复后请执行（一次性）
 
 1. 打开 **Settings → Pages → Build and deployment**。

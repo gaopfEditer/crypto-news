@@ -167,6 +167,8 @@ function pctClass(v){
   return "";
 }
 
+const GH_PAGES_REPO = "gaopfEditer/crypto-news";
+
 async function fetchJson(url){
   try {
     const r = await fetch(url);
@@ -175,15 +177,39 @@ async function fetchJson(url){
   } catch { return null; }
 }
 
+function pickGhPagesJson(candidates){
+  const ok = candidates.filter(c => c && c.json);
+  if (!ok.length) return null;
+  ok.sort((a, b) => {
+    const ua = a.json.updated || 0;
+    const ub = b.json.updated || 0;
+    if (ub !== ua) return ub - ua;
+    return (b.pref || 0) - (a.pref || 0);
+  });
+  return ok[0];
+}
+
 async function loadData(){
   const cacheBust = Date.now();
-  const localUrl = "./potential.json?_=" + cacheBust;
-  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/potential.json?_=" + cacheBust;
-  const local = await fetchJson(localUrl);
-  const remote = local ? null : await fetchJson(remoteUrl);
-  if (local) { payload = local; dataSource = "本地 potential.json"; }
-  else if (remote) { payload = remote; dataSource = "GitHub gh-pages"; }
-  else { payload = null; dataSource = ""; }
+  const q = "?_=" + cacheBust;
+  const rel = "potential.json";
+  const [local, cdn, raw] = await Promise.all([
+    fetchJson("./" + rel + q),
+    fetchJson("https://cdn.jsdelivr.net/gh/" + GH_PAGES_REPO + "@gh-pages/" + rel + q),
+    fetchJson("https://raw.githubusercontent.com/" + GH_PAGES_REPO + "/gh-pages/" + rel + q)
+  ]);
+  const picked = pickGhPagesJson([
+    { json: local, source: "本地 potential.json", pref: 3 },
+    { json: cdn, source: "jsDelivr (gh-pages)", pref: 2 },
+    { json: raw, source: "GitHub gh-pages", pref: 1 }
+  ]);
+  if (picked) {
+    payload = picked.json;
+    dataSource = picked.source;
+  } else {
+    payload = null;
+    dataSource = "";
+  }
 }
 
 function modelBadges(models){

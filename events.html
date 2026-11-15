@@ -95,6 +95,7 @@ label.future{font-size:12px;color:var(--dim)}
 <script>
 "use strict";
 const RAW = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages";
+const CDN = "https://cdn.jsdelivr.net/gh/gaopfEditer/crypto-news@gh-pages";
 const TYPES = {
   unlock: { label: "解锁", file: "unlock.json", sym: "ticker", time: "unlock_time_utc8",
     cols: [
@@ -223,24 +224,37 @@ async function tryJson(u, opts){
     return await r.json();
   }catch(e){ return null; }
 }
+function pickByUpdated(){
+  const ranked = Array.from(arguments).map((json, i, arr) => ({ json, pref: arr.length - i })).filter(x => x.json);
+  if (!ranked.length) return null;
+  ranked.sort((a, b) => {
+    const ua = a.json.updated || 0;
+    const ub = b.json.updated || 0;
+    if (ub !== ua) return ub - ua;
+    return b.pref - a.pref;
+  });
+  return ranked[0].json;
+}
 async function loadLib(type, bust){
   const b=bust!=null?bust:Math.floor(Date.now()/30000);
   const path="events/"+TYPES[type].file;
   const cacheBust={ cache:"no-store" };
-  const [loc,rem]=await Promise.all([
-    tryJson("./"+path+"?_="+b, cacheBust),
-    tryJson(RAW+"/"+path+"?_="+b, cacheBust)
+  const q = "?_="+b;
+  const [loc, cdn, rem]=await Promise.all([
+    tryJson("./"+path+q, cacheBust),
+    tryJson(CDN+"/"+path+q, cacheBust),
+    tryJson(RAW+"/"+path+q, cacheBust)
   ]);
-  if(!loc&&!rem) return null;
-  const d=(rem&&(!loc||(rem.updated||0)>=(loc.updated||0)))?rem:loc;
-  return d;
+  return pickByUpdated(loc, cdn, rem);
 }
 
 async function loadEventIndex(bust){
   const b=bust!=null?bust:Date.now();
   const cacheBust={ cache:"no-store" };
-  return await tryJson("./events/index.json?_="+b, cacheBust)
-    || await tryJson(RAW+"/events/index.json?_="+b, cacheBust);
+  const q = "?_="+b;
+  return await tryJson("./events/index.json"+q, cacheBust)
+    || await tryJson(CDN+"/events/index.json"+q, cacheBust)
+    || await tryJson(RAW+"/events/index.json"+q, cacheBust);
 }
 
 function indexNeedsNewerHtml(idx){

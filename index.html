@@ -346,6 +346,8 @@ function fmtPx(p){ if (p == null) return "N/A"; return p >= 100 ? "$" + p.toLoca
 function isZh(s){ return /[\u4e00-\u9fff]/.test(s || ""); }
 
 // ---------------------------------------------------------------- data
+const GH_PAGES_REPO = "gaopfEditer/crypto-news";
+
 async function tryJson(url){
   try {
     const r = await fetch(url);
@@ -356,21 +358,38 @@ async function tryJson(url){
   }
 }
 
+function pickGhPagesJson(candidates){
+  const ok = candidates.filter(c => c && c.json);
+  if (!ok.length) return null;
+  ok.sort((a, b) => {
+    const ua = a.json.updated || 0;
+    const ub = b.json.updated || 0;
+    if (ub !== ua) return ub - ua;
+    return (b.pref || 0) - (a.pref || 0);
+  });
+  return ok[0];
+}
+
+async function loadGhPagesFile(relPath, cacheBust){
+  const q = "?_=" + cacheBust;
+  const [local, cdn, raw] = await Promise.all([
+    tryJson("./" + relPath + q),
+    tryJson("https://cdn.jsdelivr.net/gh/" + GH_PAGES_REPO + "@gh-pages/" + relPath + q),
+    tryJson("https://raw.githubusercontent.com/" + GH_PAGES_REPO + "/gh-pages/" + relPath + q)
+  ]);
+  return pickGhPagesJson([
+    { json: local, source: "本地", pref: 3 },
+    { json: cdn, source: "jsDelivr (gh-pages)", pref: 2 },
+    { json: raw, source: "GitHub raw (gh-pages 分支)", pref: 1 }
+  ]);
+}
+
 async function loadData(){
   const cacheBust = Math.floor(Date.now() / 30000);
-  const localUrl = "./data.json?_=" + cacheBust;
-  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/data.json?_=" + cacheBust;
-
-  // 本地与 gh-pages raw 都取，用 updated 更新的那份（同样新时优先 raw）
-  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
-  if (!local && !remote) throw new Error("data.json 加载失败");
-  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
-    data = remote;
-    dataSource = "GitHub raw (gh-pages 分支)";
-  } else {
-    data = local;
-    dataSource = "本地";
-  }
+  const picked = await loadGhPagesFile("data.json", cacheBust);
+  if (!picked) throw new Error("data.json 加载失败");
+  data = picked.json;
+  dataSource = picked.source;
 
   if (lastView === null) {
     lastView = data.updated;
@@ -385,17 +404,10 @@ async function loadData(){
 
 async function loadMovers(){
   const cacheBust = Math.floor(Date.now() / 30000);
-  const localUrl = "./movers.json?_=" + cacheBust;
-  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/movers.json?_=" + cacheBust;
-  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
-  if (!local && !remote) { movers = null; return; }
-  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
-    movers = remote;
-    moversSource = "GitHub raw";
-  } else {
-    movers = local;
-    moversSource = "本地";
-  }
+  const picked = await loadGhPagesFile("movers.json", cacheBust);
+  if (!picked) { movers = null; return; }
+  movers = picked.json;
+  moversSource = picked.source === "GitHub raw (gh-pages 分支)" ? "GitHub raw" : picked.source;
 }
 
 function fmtVol(v){
