@@ -134,6 +134,8 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&
 const pad = n => String(n).padStart(2, "0");
 
 // ---------------------------------------------------------------- data
+const GH_PAGES_REPO = "gaopfEditer/crypto-news";
+
 async function tryJson(url){
   try {
     const r = await fetch(url);
@@ -144,20 +146,38 @@ async function tryJson(url){
   }
 }
 
+function pickGhPagesJson(candidates){
+  const ok = candidates.filter(c => c && c.json);
+  if (!ok.length) return null;
+  ok.sort((a, b) => {
+    const ua = a.json.updated || 0;
+    const ub = b.json.updated || 0;
+    if (ub !== ua) return ub - ua;
+    return (b.pref || 0) - (a.pref || 0);
+  });
+  return ok[0];
+}
+
+async function loadGhPagesFile(relPath, cacheBust){
+  const q = "?_=" + cacheBust;
+  const [local, cdn, raw] = await Promise.all([
+    tryJson("./" + relPath + q),
+    tryJson("https://cdn.jsdelivr.net/gh/" + GH_PAGES_REPO + "@gh-pages/" + relPath + q),
+    tryJson("https://raw.githubusercontent.com/" + GH_PAGES_REPO + "/gh-pages/" + relPath + q)
+  ]);
+  return pickGhPagesJson([
+    { json: local, source: "本地", pref: 3 },
+    { json: cdn, source: "jsDelivr (gh-pages)", pref: 2 },
+    { json: raw, source: "GitHub raw (gh-pages 分支)", pref: 1 }
+  ]);
+}
+
 async function loadData(){
   const cacheBust = Math.floor(Date.now() / 30000);
-  const localUrl = "./calendar.json?_=" + cacheBust;
-  const remoteUrl = "https://raw.githubusercontent.com/gaopfEditer/crypto-news/gh-pages/calendar.json?_=" + cacheBust;
-
-  const [local, remote] = await Promise.all([tryJson(localUrl), tryJson(remoteUrl)]);
-  if (!local && !remote) throw new Error("calendar.json 加载失败");
-  if (remote && (!local || (remote.updated || 0) >= (local.updated || 0))) {
-    data = remote;
-    dataSource = "GitHub raw (gh-pages 分支)";
-  } else {
-    data = local;
-    dataSource = "本地";
-  }
+  const picked = await loadGhPagesFile("calendar.json", cacheBust);
+  if (!picked) throw new Error("calendar.json 加载失败");
+  data = picked.json;
+  dataSource = picked.source;
 }
 
 function getCategoryLabel(cat){

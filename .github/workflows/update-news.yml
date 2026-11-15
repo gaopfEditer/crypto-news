@@ -78,6 +78,7 @@ jobs:
           cp unlocks.html deploy/
           cp potential.html deploy/ 2>/dev/null || true
           cp potential.json deploy/ 2>/dev/null || true
+          cp favicon.svg deploy/ 2>/dev/null || true
           echo "" > deploy/.nojekyll
 
       - name: 输出摘要

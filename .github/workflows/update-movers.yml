@@ -51,6 +51,7 @@ jobs:
           cp unlocks.html publish/ 2>/dev/null || true
           cp potential.html publish/ 2>/dev/null || true
           cp potential.json publish/ 2>/dev/null || true
+          cp favicon.svg publish/ 2>/dev/null || true
           echo "" > publish/.nojekyll
 
       - name: 上传发布目录
