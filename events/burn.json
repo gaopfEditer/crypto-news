@@ -1,6 +1,6 @@
 {
   "type": "burn",
-  "updated": 1794977246,
+  "updated": 1795062889,
   "events": [
     {
       "id": "510b14366a7a5d02",
@@ -7987,6 +7987,81 @@
           "D-2": "-0.3880288588",
           "D-1": "-1.062293872",
           "total_7d": "-3.563438897"
+        }
+      ]
+    },
+    {
+      "id": "57b55e1574bf23b2",
+      "event_ts": 1794458040,
+      "event_time_utc8": "2026-11-12 12:34",
+      "is_future": false,
+      "status": "occurred",
+      "data_source": "____________",
+      "last_seen_ts": null,
+      "absence_streak": 0,
+      "frozen": false,
+      "last_updated_ts": 1795062889,
+      "fields": {
+        "token": "HYPE",
+        "coingecko_id": "hyperliquid",
+        "type": "持续回购销毁(窗口累计)",
+        "in_window": "是",
+        "burn_utc8": "2026-11-12 12:34",
+        "burn_time_basis": "窗口起点锚定(援助基金窗口内连续买入)",
+        "announce_utc8": "8天有成交; 首笔 2026-11-12 12:46 末笔 2026-11-19 11:27",
+        "amount": 241773.1,
+        "usd_value": 16453999.92,
+        "usd_basis": "援助基金实际成交额(Hyperliquid API userFillsByTime 窗口内买单合计)",
+        "pct_circulating": 0.1086885854,
+        "pct_total_preburn": 0.02530201353,
+        "supply_basis": "CoinGecko /coins 当前快照; 占总量=数量/(当前总量+数量)",
+        "tx": "HyperCore援助基金地址 0xfefefefefefefefefefefefefefefefefefefefe",
+        "price_source": "Binance HYPEUSDT 现货1h",
+        "price_7d_before": 83.59,
+        "price_at_burn": 72.24,
+        "price_now": "67.61",
+        "price_now_time": "2026-11-19 12:34",
+        "pre7d_pct": -13.57817921,
+        "post_pct": -6.409191584,
+        "post_low_pct": -13.44130676,
+        "post_high_pct": 2.685492802,
+        "btc_pre7d_pct": -8.362788574,
+        "btc_post_pct": -14.05787437,
+        "post_hours": 168.0,
+        "single_source": false,
+        "flags": null,
+        "source_url": "https://api.hyperliquid.xyz/info (userFillsByTime)"
+      },
+      "pre7d_daily": [
+        {
+          "token": "HYPE",
+          "series": "HYPE",
+          "burn_utc8": "2026-11-12 12:34",
+          "in_window": "是",
+          "D7_start_utc8": "2026-11-05 12:34",
+          "D-7": "-7.177892092",
+          "D-6": "2.474545689",
+          "D-5": "-2.490252798",
+          "D-4": "-3.830775184",
+          "D-3": "-0.9120171674",
+          "D-2": "-2.625879805",
+          "D-1": "0.4170141785",
+          "total_7d": "-13.57817921"
+        },
+        {
+          "token": "HYPE",
+          "series": "BTC",
+          "burn_utc8": "2026-11-12 12:34",
+          "in_window": "是",
+          "D7_start_utc8": "2026-11-05 12:34",
+          "D-7": "-5.748970955",
+          "D-6": "-0.02509461196",
+          "D-5": "0.03208436647",
+          "D-4": "-1.403263863",
+          "D-3": "-0.3880288588",
+          "D-2": "-1.062293872",
+          "D-1": "0.05056244964",
+          "total_7d": "-8.362788574"
         }
       ]
     }
